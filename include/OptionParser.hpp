@@ -28,11 +28,12 @@
 
 namespace OptionParser
 {
+#define OptionParser_DEFAULT_DELIM " \t,"
 
 	/*
 	Split string by spaces.
 	*/
-	std::vector<std::string_view> extractWords(std::string_view str_view, const std::string_view & delim = " \t")
+	inline std::vector<std::string_view> extractWords(std::string_view str_view, const std::string_view & delim = OptionParser_DEFAULT_DELIM)
 	{
 		std::vector<std::string_view> word_vec;
 		while (!str_view.empty()) {
@@ -59,7 +60,7 @@ namespace OptionParser
 	/*
 	Remove prefix delim.
 	*/
-	std::pair<std::string_view, std::size_t> removePrefixDelim(std::string_view str_view, const std::string_view & delim = " \t")
+	inline std::pair<std::string_view, std::size_t> removePrefixDelim(std::string_view str_view, const std::string_view & delim = OptionParser_DEFAULT_DELIM)
 	{
 		auto delim_pos = str_view.find_first_of(delim);
 		if (delim_pos == str_view.npos) return std::make_pair(str_view, 0);
@@ -81,7 +82,7 @@ namespace OptionParser
 	/*
 	Get first word.
 	*/
-	std::pair<std::string_view, std::size_t> extractFirstWord(std::string_view str_view, const std::string_view & delim = " \t")
+	inline std::pair<std::string_view, std::size_t> extractFirstWord(std::string_view str_view, const std::string_view & delim = OptionParser_DEFAULT_DELIM)
 	{
 		auto pair = removePrefixDelim(str_view, delim);
 		auto delim_pos = pair.first.find_first_of(delim);
@@ -97,7 +98,7 @@ namespace OptionParser
 	/*
 	Check if string has delim before first not delim.
 	*/
-	bool hasPrefixDelim(std::string_view str_view, const std::string_view & delim = " \t")
+	inline bool hasPrefixDelim(std::string_view str_view, const std::string_view & delim = " \t")
 	{
 		auto delim_pos = str_view.find_first_of(delim);
 		auto word_pos = str_view.find_first_not_of(delim);
@@ -121,7 +122,7 @@ namespace OptionParser
 	/*
 	Remove first word (and delims).
 	*/
-	std::pair<std::string_view, std::size_t> removeFirstWord(std::string_view str_view, const std::string_view & delim = " \t")
+	inline std::pair<std::string_view, std::size_t> removeFirstWord(std::string_view str_view, const std::string_view & delim = OptionParser_DEFAULT_DELIM)
 	{
 		std::size_t s = 0;
 		auto pair = removePrefixDelim(str_view, delim);
@@ -135,10 +136,26 @@ namespace OptionParser
 	}
 
 	/*
+	Try to extract first word.
+	If succesful then remove word from str_view.
+	*/
+	inline std::optional<std::string_view> extractFirstWordDestructive(std::string_view & str_view, const std::string_view & delim = OptionParser_DEFAULT_DELIM)
+	{
+		auto pair1 = extractFirstWord(str_view, delim);
+		if (pair1.first.empty()) {
+			return std::nullopt;
+		}
+		else {
+			auto pair2 = removeFirstWord(str_view, delim);
+			str_view = pair2.first;
+			return pair1.first;
+		}
+	}
+	/*
 	Search for end of list.
 	(first char must be start of list).
 	*/
-	std::size_t searchEndOfList(std::string_view str_view, char begin = '[', char end = ']')
+	inline std::size_t searchEndOfList(std::string_view str_view, char begin = '[', char end = ']')
 	{
 		assert(begin != end);
 
@@ -170,7 +187,7 @@ namespace OptionParser
 	/*
 	Extract list from string.
 	*/
-	std::pair<std::string_view, std::size_t> extractFirstList(std::string_view str_view, char begin = '[', char end = ']', const std::string_view & delim = " \t")
+	inline std::pair<std::string_view, std::size_t> extractFirstList(std::string_view str_view, char begin = '[', char end = ']', const std::string_view & delim = OptionParser_DEFAULT_DELIM)
 	{
 		assert(begin != end);
 		auto pair = removePrefixDelim(str_view, delim);
@@ -186,7 +203,7 @@ namespace OptionParser
 	/*
 	Parse extracted list.
 	*/
-	std::vector<std::string_view> parseList(std::string_view str_view, const std::string_view & delim = " \t")
+	inline std::vector<std::string_view> parseList(std::string_view str_view, const std::string_view & delim = OptionParser_DEFAULT_DELIM)
 	{
 		str_view.remove_prefix(1);
 		str_view.remove_suffix(1);
@@ -196,7 +213,7 @@ namespace OptionParser
 	/*
 	Extract string.
 	*/
-	std::pair<std::string_view, std::size_t> extractFirstString(std::string_view str_view, const std::string_view & delim = " \t")
+	inline std::pair<std::string_view, std::size_t> extractFirstString(std::string_view str_view, const std::string_view & delim = OptionParser_DEFAULT_DELIM)
 	{
 		auto pair = removePrefixDelim(str_view, delim);
 

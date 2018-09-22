@@ -58,7 +58,15 @@ int main(int argc, char** argv)
 		std::cout << "found 3\n";
 	}
 
-	
+	std::string_view str2("d");
+
+	if (auto r = extractFirstWordDestructive(str2)) {
+		std::cout << *r << "\n";
+	}
+	std::cout << str2 << "\n";
+
+	std::cout << str2.size() << "\n";
+
 	
 
 
