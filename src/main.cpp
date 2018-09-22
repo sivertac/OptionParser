@@ -34,8 +34,8 @@ int main(int argc, char** argv)
 
 	Parser parser(Option<WordType>("-0"), Option<ListType, StringType>("-1"), Option<>("-2"), Option<>("-3"));
 
-	//std::string_view str1("-0 lol -2 lol -1 lol -0 lol");
-	std::string_view str1(" a -1 \" -0 sgjerogjer \" -2 -0 b    ");
+	std::string_view str1("lol -0 -2 lol -1 lol -0 lol -3");
+	//std::string_view str1(" a -1 \" -0 sgjerogjer \" -2 -0 b    ");
 
 	auto set = parser.parse(str1);
 
@@ -58,15 +58,7 @@ int main(int argc, char** argv)
 		std::cout << "found 3\n";
 	}
 
-	std::string_view str2("d");
-
-	if (auto r = extractFirstWordDestructive(str2)) {
-		std::cout << *r << "\n";
-	}
-	std::cout << str2 << "\n";
-
-	std::cout << str2.size() << "\n";
-
+	
 	
 
 

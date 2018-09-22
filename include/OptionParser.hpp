@@ -241,9 +241,51 @@ namespace OptionParser
 		static_for_impl(t, std::forward<Func>(f), std::make_index_sequence<sizeof...(T)>{});
 	}
 
-	struct WordType { std::string_view type; };
-	struct ListType { std::vector<std::string_view> type; };
-	struct StringType { std::string_view type; };
+	struct WordType { 
+		bool parseType(std::string_view & str_view, const std::string_view & delim)
+		{
+			auto pair = extractFirstWord(str_view, delim);
+			if (!pair.first.empty()) {
+				type = pair.first;
+				str_view.remove_prefix(pair.second);
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+		std::string_view type;
+	};
+	struct ListType { 
+		bool parseType(std::string_view & str_view, const std::string_view & delim)
+		{
+			auto pair = extractFirstList(str_view, '[', ']', delim);
+			if (!pair.first.empty()) {
+				type = parseList(pair.first);
+				str_view.remove_prefix(pair.second);
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+		std::vector<std::string_view> type;
+	};
+	struct StringType { 
+		bool parseType(std::string_view & str_view, const std::string_view & delim)
+		{
+			auto pair = extractFirstString(str_view, delim);
+			if (!pair.first.empty()) {
+				type = pair.first;
+				str_view.remove_prefix(pair.second);
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+		std::string_view type; 
+	};
 
 	template <class ... Params>
 	class Option;
@@ -297,10 +339,9 @@ namespace OptionParser
 			}
 		}
 
-		std::optional<ResultType> parse(std::string_view & input_view) const
+		std::optional<ResultType> parse(std::string_view & input_view, const std::string_view & delim = OptionParser_DEFAULT_DELIM) const
 		{
 			if (input_view.empty()) return std::nullopt;
-			const std::string_view delim(" \t,");
 			std::string_view temp_view = input_view;
 			//check if identifier is correct
 			auto pair = extractFirstWord(temp_view, delim);
@@ -312,9 +353,9 @@ namespace OptionParser
 				return ResultType();
 			}
 
-			//recursive parse
+			//check and parse params
 			ResultType result;
-			if (parseParams(result, temp_view)) {
+			if (parseParams(result, temp_view, delim)) {
 				input_view = temp_view;
 				return result;
 			}
@@ -333,41 +374,25 @@ namespace OptionParser
 			return m_identifiers;
 		}
 	private:
-		bool parseParams(ResultType & result, std::string_view & str_view) const
+		template <std::size_t ... Is>
+		bool traverseParams(ResultType & result, std::string_view & str_view, const std::string_view & delim, std::index_sequence<Is...>) const
 		{
-			std::size_t count = result.getSize();
-			static_for(result.m_params, [&](auto e) {parseType(e, str_view, count); });
-			return (count == 0) ? true : false;
+			bool failed = false;
+			([&](auto & type) 
+			{
+				if (!failed) {
+					failed = !type.parseType(str_view, delim);
+				}
+			}
+			(std::get<Is>(result.m_params)), ...);
+			return !failed;
 		}
 
-		static void parseType(WordType & ref, std::string_view & str_view, std::size_t & count)
+		bool parseParams(ResultType & result, std::string_view & str_view, const std::string_view & delim) const
 		{
-			auto pair = extractFirstWord(str_view);
-			if (!pair.first.empty()) {
-				ref.type = pair.first;
-				str_view.remove_prefix(pair.second);
-				--count;
-			}
+			return traverseParams(result, str_view, delim, std::make_index_sequence<sizeof...(Params)>{});
 		}
-		static void parseType(ListType & ref, std::string_view & str_view, std::size_t & count)
-		{
-			auto pair = extractFirstList(str_view);
-			if (!pair.first.empty()) {
-				ref.type = parseList(pair.first);
-				str_view.remove_prefix(pair.second);
-				--count;
-			}
-		}
-		static void parseType(StringType & ref, std::string_view & str_view, std::size_t & count)
-		{
-			auto pair = extractFirstString(str_view);
-			if (!pair.first.empty()) {
-				ref.type = pair.first;
-				str_view.remove_prefix(pair.second);
-				--count;
-			}
-		}
-	
+
 		std::vector<std::string_view> m_identifiers;
 	};
 
@@ -435,7 +460,7 @@ namespace OptionParser
 		{
 		}
 	
-		ResultSetType parse(std::string_view input_line) const
+		ResultSetType parse(std::string_view input_line, const std::string_view & delim = OptionParser_DEFAULT_DELIM) const
 		{
 			
 			ResultSetType r;
@@ -445,7 +470,7 @@ namespace OptionParser
 				[&](const Options & opt, std::pair<bool, typename OptionResult<Options>::Result> & pair) ->bool 
 			{
 				if (!pair.first) {
-					if (auto r = opt.parse(input_line)) {
+					if (auto r = opt.parse(input_line, delim)) {
 						pair.first = true;
 						pair.second = *r;
 						return true;
@@ -460,7 +485,7 @@ namespace OptionParser
 			while (!input_line.empty()) {
 				bool found = traverseOptions(lamb_tup, r, std::make_index_sequence<sizeof...(Options)>{});
 				if (!found) {
-					input_line = removeFirstWord(input_line).first;
+					input_line = removeFirstWord(input_line, delim).first;
 				}
 			}
 
