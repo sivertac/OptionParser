@@ -25,6 +25,7 @@
 #include <utility>
 #include <cassert>
 #include <type_traits>
+#include <charconv>
 
 namespace OptionParser
 {
@@ -241,7 +242,8 @@ namespace OptionParser
 		static_for_impl(t, std::forward<Func>(f), std::make_index_sequence<sizeof...(T)>{});
 	}
 
-	struct WordType { 
+	struct WordType 
+	{ 
 		bool parseType(std::string_view & str_view, const std::string_view & delim)
 		{
 			auto pair = extractFirstWord(str_view, delim);
@@ -256,7 +258,8 @@ namespace OptionParser
 		}
 		std::string_view type;
 	};
-	struct ListType { 
+	struct ListType 
+	{ 
 		bool parseType(std::string_view & str_view, const std::string_view & delim)
 		{
 			auto pair = extractFirstList(str_view, '[', ']', delim);
@@ -271,7 +274,8 @@ namespace OptionParser
 		}
 		std::vector<std::string_view> type;
 	};
-	struct StringType { 
+	struct StringType 
+	{ 
 		bool parseType(std::string_view & str_view, const std::string_view & delim)
 		{
 			auto pair = extractFirstString(str_view, delim);
@@ -285,6 +289,27 @@ namespace OptionParser
 			}
 		}
 		std::string_view type; 
+	};
+	template <typename T>
+	struct NumberType 
+	{
+		bool parseType(std::string_view & str_view, const std::string_view & delim)
+		{
+			auto pair = extractFirstWord(str_view, delim);
+			if (!pair.first.empty()) {
+				//try to parse number
+				auto ret = std::from_chars(pair.first.data(), pair.first.data() + pair.first.size(), type);
+				if (ret.ec == std::errc::invalid_argument) {
+					return false;
+				}
+				str_view.remove_prefix(pair.second);
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+		T type;
 	};
 
 	template <class ... Params>

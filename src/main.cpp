@@ -32,9 +32,10 @@ int main(int argc, char** argv)
 
 	using namespace OptionParser;
 
-	Parser parser(Option<WordType>("-0"), Option<ListType, StringType>("-1"), Option<>("-2"), Option<>("-3"));
+	Parser parser(Option<NumberType<int>>("-int"), Option<NumberType<double>>("-double"));
 
-	std::string_view str1("lol -0 -2 lol -1 lol -0 lol -3");
+	//std::string_view str1("-int 123.123213 -double -123");
+	std::string_view str1("-double -123");
 	//std::string_view str1(" a -1 \" -0 sgjerogjer \" -2 -0 b    ");
 
 	auto set = parser.parse(str1);
@@ -47,16 +48,15 @@ int main(int argc, char** argv)
 	if (auto r = set.find<1>()) {
 		std::cout << "found 1\n";
 		auto l = r->get<0>();
-		auto s = r->get<1>();
-		print(l.begin(), l.end());
-		std::cout << s << "\n";
+		std::cout << l << "\n";
 	}
-	if (auto r = set.find<2>()) {
-		std::cout << "found 2\n";
-	}
-	if (auto r = set.find<3>()) {
-		std::cout << "found 3\n";
-	}
+
+	//if (auto r = set.find<2>()) {
+	//	std::cout << "found 2\n";
+	//}
+	//if (auto r = set.find<3>()) {
+	//	std::cout << "found 3\n";
+	//}
 
 	
 	
