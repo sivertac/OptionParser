@@ -441,7 +441,7 @@ namespace OptionParser
 	template <class ... Params>
 	struct OptionResult<Option<Params...>>
 	{
-		using Result = Result<Params...>;
+		using Type = Result<Params...>;
 	};
 
 	template <class ... Options>
@@ -451,10 +451,10 @@ namespace OptionParser
 	class ResultSet
 	{
 	public:
-		using ResultTuple = std::tuple<std::pair<bool, typename OptionResult<Options>::Result>...>;
+		using ResultTuple = std::tuple<std::pair<bool, typename OptionResult<Options>::Type>...>;
 
 		ResultSet() :
-			m_results(std::pair(false, typename OptionResult<Options>::Result())...)
+			m_results(std::pair(false, typename OptionResult<Options>::Type())...)
 		{
 		}
 
@@ -492,7 +492,7 @@ namespace OptionParser
 			if (input_line.empty()) return r;
 
 			auto lamb_tup = std::make_tuple(
-				[&](const Options & opt, std::pair<bool, typename OptionResult<Options>::Result> & pair) ->bool 
+				[&](const Options & opt, std::pair<bool, typename OptionResult<Options>::Type> & pair) ->bool 
 			{
 				if (!pair.first) {
 					if (auto r = opt.parse(input_line, delim)) {
