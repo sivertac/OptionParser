@@ -1,5 +1,11 @@
 # OptionParser
-A statically typed header only library for parsing option flags.
+A C++17 header only string parser library. 
+The goal is to extract simple structure out of strings in a similar fashion to how *nix command line programs use flags to spesify options.
+To use the library, spesify how you want the structure of the string to look in the template parameters, and a parser will be generated.
+					
+Thanks to meta-template-programming, OptionParser will generate a parser based on the parameters at compile time, which allows the parser to be used at runtime with no startup cost, and minimal parse-time cost (we can apply compile time optimizations to the spesific parser).
+A spesific implemtation optimization is the use of C++17 std::string_view, to have no heap allocations while parsing (the maximum amount of options is known at compile time). There are no stored copies of parsed results, only pointers to the original string. The rationale for this optimization is to reduce size and improve cache reuse and locality.
+The library is statically typed, which means that you will get a compile time error if you try to access a result member(option) that is not part of the parser generated.
 
 ## Requirements
 C++17
