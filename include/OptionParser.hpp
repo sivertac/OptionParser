@@ -5,9 +5,6 @@
 #ifndef OptionParser_HEADER
 #define OptionParser_HEADER
 
-#if 1
-
-
 //C++
 #include <iostream>
 #include <sstream>
