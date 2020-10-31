@@ -12,6 +12,9 @@ target_include_directories(
     $<INSTALL_INTERFACE:include>
 )
 
+# export from build
+export(TARGETS ${PROJECT_NAME} FILE "${PROJECT_NAME}Targets.cmake")
+
 # target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 
 include(CMakePackageConfigHelpers)
