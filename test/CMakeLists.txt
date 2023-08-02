@@ -48,4 +48,4 @@ function(create_xsan_test test_name test_sources)
     target_link_libraries(${test_name}-tsan PUBLIC test-main-tsan)
 endfunction()
 
-create_xsan_test(test2 ${CMAKE_CURRENT_SOURCE_DIR}/test2.cpp)
+create_xsan_test(test_OptionParser ${CMAKE_CURRENT_SOURCE_DIR}/test_OptionParser.cpp)
