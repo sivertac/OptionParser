@@ -197,6 +197,10 @@ public:
 
     Option(const std::string_view &identifier)
         : Option(std::vector<std::string_view>{identifier}) {}
+    
+    template <class... Identifiers>
+    Option(const std::string_view &identifier, Identifiers... identifiers)
+        : Option(std::vector<std::string_view>{identifier, identifiers...}) {}
 
     bool checkIdentifier(const std::string_view &str) const {
         auto it = std::find_if(m_identifiers.begin(), m_identifiers.end(),
