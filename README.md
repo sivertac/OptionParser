@@ -1,5 +1,5 @@
 # OptionParser
-A C++17 header only string parser library. 
+A C++17 string parser library. 
 The goal is to extract simple structure out of strings in a similar fashion to how *nix command line programs use flags to specify options.
 To use the library, specify how you want the structure of the string to look in the template parameters, and a parser will be generated.
 					

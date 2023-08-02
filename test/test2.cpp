@@ -1,10 +1,11 @@
 
-#include <doctest/doctest.h>
-#include <unistd.h>
-#include <string>
 #include <OptionParser.hpp>
+#include <string>
+#include <unistd.h>
 
-TEST_CASE("Create Parser") {
+#include <gtest/gtest.h>
+
+TEST(OptionParser, test1) {
     using namespace OptionParser;
     Parser parser(Option<NumberType<int>>("number"));
 
@@ -12,8 +13,6 @@ TEST_CASE("Create Parser") {
 
     auto set = parser.parse(input_string);
     if (auto res = set.find<0>()) {
-        CHECK(res->get<0>() == 123);
+        EXPECT_EQ(res->get<0>(), 123);
     }
 }
-
-
