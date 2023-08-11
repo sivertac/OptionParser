@@ -49,3 +49,4 @@ function(create_xsan_test test_name test_sources)
 endfunction()
 
 create_xsan_test(test_OptionParser ${CMAKE_CURRENT_SOURCE_DIR}/test_OptionParser.cpp)
+create_xsan_test(test_OptionParser_v2 ${CMAKE_CURRENT_SOURCE_DIR}/test_OptionParser_v2.cpp)

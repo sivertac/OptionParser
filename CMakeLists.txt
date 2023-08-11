@@ -5,14 +5,17 @@ option(NO_TESTS "Do not build tests" OFF)
 project(OptionParser VERSION 0.0.2 LANGUAGES CXX)
 
 # Library
-add_library(OptionParser STATIC ${CMAKE_CURRENT_SOURCE_DIR}/src/OptionParser.cpp)
+add_library(OptionParser STATIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/OptionParser.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/OptionParser_v2.cpp
+)
 set_target_properties(OptionParser PROPERTIES PUBLIC_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/src/OptionParser.hpp)
 target_include_directories(
     OptionParser
     PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+target_compile_features(OptionParser PRIVATE cxx_std_17)
 
 # Install
 install(TARGETS OptionParser LIBRARY PUBLIC_HEADER)

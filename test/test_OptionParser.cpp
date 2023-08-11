@@ -99,7 +99,8 @@ TEST(OptionParser, NumberTypeInvalid) {
 
 TEST(OptionParser, ArbitraryPosition) {
     using namespace OptionParser;
-    Parser parser(Option<NumberType<int>>("-a"), Option<NumberType<int>>("-b"), Option<NumberType<int>>("-c"));
+    Parser parser(Option<NumberType<int>>("-a"), Option<NumberType<int>>("-b"),
+                  Option<NumberType<int>>("-c"));
 
     std::string input_string = "-c 3 -a 1 -b 2";
 
@@ -117,7 +118,9 @@ TEST(OptionParser, ArbitraryPosition) {
 
 TEST(OptionParser, MultiIdentifier) {
     using namespace OptionParser;
-    Parser parser(Option<NumberType<int>>("-a", "--alpha"), Option<NumberType<int>>("-b", "--beta"), Option<NumberType<int>>("-c", "--gamma"));
+    Parser parser(Option<NumberType<int>>("-a", "--alpha"),
+                  Option<NumberType<int>>("-b", "--beta"),
+                  Option<NumberType<int>>("-c", "--gamma"));
 
     std::string input_string = "--gamma 3 -a 1 -b 2";
 
@@ -131,4 +134,22 @@ TEST(OptionParser, MultiIdentifier) {
     res = set.find<2>();
     EXPECT_TRUE(res.has_value());
     EXPECT_EQ(res->get<0>(), 3);
+}
+
+TEST(OptionParser, MultiOptionFail) {
+    using namespace OptionParser;
+    Parser parser(Option<NumberType<int>>("-a"), Option<NumberType<int>>("-b"),
+                  Option<NumberType<int>>("-c"));
+
+    std::string input_string = "-a notnumber -b 2 -c 4";
+
+    auto set = parser.parse(input_string);
+    auto res = set.find<0>();
+    EXPECT_FALSE(res.has_value());
+    res = set.find<1>();
+    EXPECT_TRUE(res.has_value());
+    EXPECT_EQ(res->get<0>(), 2);
+    res = set.find<2>();
+    EXPECT_TRUE(res.has_value());
+    EXPECT_EQ(res->get<0>(), 4);
 }

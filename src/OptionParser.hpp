@@ -197,7 +197,7 @@ public:
 
     Option(const std::string_view &identifier)
         : Option(std::vector<std::string_view>{identifier}) {}
-    
+
     template <class... Identifiers>
     Option(const std::string_view &identifier, Identifiers... identifiers)
         : Option(std::vector<std::string_view>{identifier, identifiers...}) {}
