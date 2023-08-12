@@ -37,7 +37,7 @@ target_link_libraries(test-main-tsan PUBLIC -fsanitize=thread)
 
 function(create_test test_name test_sources)
     add_executable(${test_name} ${test_sources})
-    target_link_libraries(${test_name} PUBLIC gtest_main)
+    target_link_libraries(${test_name} PUBLIC gtest_main gmock_main)
     gtest_discover_tests(${test_name})
 endfunction()
 

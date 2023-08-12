@@ -1,6 +1,7 @@
 
 #include <OptionParser_v2.cpp>
 #include <OptionParser_v2.hpp>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 TEST(tokenize, EmptyString) {
@@ -67,54 +68,54 @@ TEST(tokenize, QuotedStringWithEscapedQuote) {
     EXPECT_EQ(tokens[2], "four");
 }
 
-TEST(parseIncomplete, EmptyString) {
+TEST(parse, EmptyString) {
     using namespace optionparser_v2;
     auto flag = makeFlag("help", "h", "Print help message", {});
 
     std::string_view input_string = "";
     std::optional<ParseResult> result =
-        optionparser_v2::parseIncomplete(flag, input_string);
+        optionparser_v2::parse(flag, input_string);
     EXPECT_FALSE(result.has_value());
 }
 
-TEST(parseIncomplete, ParameterOneWord) {
+TEST(parse, ParameterOneWord) {
     using namespace optionparser_v2;
     auto parameter = makeParameter("url", "URL of repository");
 
     std::string_view input_string = "randomurl";
     std::optional<ParseResult> result =
-        optionparser_v2::parseIncomplete(parameter, input_string);
+        optionparser_v2::parse(parameter, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "randomurl");
     EXPECT_TRUE(result->m_component->isParameter());
 }
 
-TEST(parseIncomplete, FlagOneWord) {
+TEST(parse, FlagOneWord) {
     using namespace optionparser_v2;
     auto flag = makeFlag("help", "h", "Print help message", {});
 
     std::string_view input_string = "--help";
     std::optional<ParseResult> result =
-        optionparser_v2::parseIncomplete(flag, input_string);
+        optionparser_v2::parse(flag, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "--help");
     EXPECT_TRUE(result->m_component->isFlag());
 }
 
-TEST(parseIncomplete, PositionalIdentifierOneWord) {
+TEST(parse, PositionalIdentifierOneWord) {
     using namespace optionparser_v2;
     auto positional_identifier =
         makePositionalIdentifier("clone", "Clone a repository", {});
 
     std::string_view input_string = "clone";
     std::optional<ParseResult> result =
-        optionparser_v2::parseIncomplete(positional_identifier, input_string);
+        optionparser_v2::parse(positional_identifier, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "clone");
     EXPECT_TRUE(result->m_component->isPositionalIdentifier());
 }
 
-TEST(parseIncomplete, PositionalIdentifierContainingParameterAndFlag) {
+TEST(parse, PositionalIdentifierContainingParameterAndFlag) {
     using namespace optionparser_v2;
     auto parameter = makeParameter("url", "URL of repository");
     auto flag = makeFlag("help", "h", "Print help message", {});
@@ -126,7 +127,7 @@ TEST(parseIncomplete, PositionalIdentifierContainingParameterAndFlag) {
 
     std::string_view input_string = "clone --help yo";
     std::optional<ParseResult> result =
-        optionparser_v2::parseIncomplete(positional_identifier, input_string);
+        optionparser_v2::parse(positional_identifier, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "clone");
     EXPECT_EQ(result->m_component, &positional_identifier);
@@ -137,7 +138,7 @@ TEST(parseIncomplete, PositionalIdentifierContainingParameterAndFlag) {
     EXPECT_TRUE(result->m_children[1].m_component->isParameter());
 }
 
-TEST(parseIncomplete,
+TEST(parse,
      PositionalIdentifierContainingParameterAndFlagAndPositionalIdentifier) {
     using namespace optionparser_v2;
     auto parameter = makeParameter("url", "URL of repository");
@@ -153,7 +154,7 @@ TEST(parseIncomplete,
 
     std::string_view input_string = "pull clone --help yo";
     std::optional<ParseResult> result =
-        optionparser_v2::parseIncomplete(positional_identifier2, input_string);
+        optionparser_v2::parse(positional_identifier2, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "pull");
     EXPECT_EQ(result->m_component, &positional_identifier2);
@@ -173,7 +174,7 @@ TEST(serializeResult, TwoParameters) {
 
     std::string_view input_string = "one two";
     std::optional<ParseResult> result =
-        optionparser_v2::parseIncomplete(parameter1, input_string);
+        optionparser_v2::parse(parameter1, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "one");
     EXPECT_TRUE(result->m_component->isParameter());
@@ -190,7 +191,7 @@ TEST(serializeResult, FlagWithParameter) {
 
     std::string_view input_string = "--help one two";
     std::optional<ParseResult> result =
-        optionparser_v2::parseIncomplete(flag, input_string);
+        optionparser_v2::parse(flag, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "--help");
     EXPECT_TRUE(result->m_component->isFlag());
@@ -208,11 +209,59 @@ TEST(serializeResult, PositionalIdentifierWithFlagAndParameter) {
 
     std::string_view input_string = "clone one --help";
     std::optional<ParseResult> result =
-        optionparser_v2::parseIncomplete(positional_identifier, input_string);
+        optionparser_v2::parse(positional_identifier, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "clone");
     EXPECT_TRUE(result->m_component->isPositionalIdentifier());
 
     std::string serialized = optionparser_v2::serializeResult(*result);
     EXPECT_EQ(serialized, input_string);
+}
+
+TEST(nextTokenSuggestions, TwoPositionalIdentifiers) {
+    using namespace optionparser_v2;
+    auto positional_identifier_root =
+        makePositionalIdentifier("git", "git",
+                                 {makePositionalIdentifier("clone", "clone"),
+                                  makePositionalIdentifier("pull", "pull")});
+
+    std::string_view input_string = "git";
+
+    std::vector<std::string_view> suggestions =
+        optionparser_v2::nextTokenSuggestions(positional_identifier_root,
+                                              input_string);
+    EXPECT_EQ(suggestions.size(), 2);
+    EXPECT_THAT(suggestions, ::testing::Contains("clone"));
+    EXPECT_THAT(suggestions, ::testing::Contains("pull"));
+}
+
+TEST(nextTokenSuggestions, TwoPositionalIdentifiersPrefix) {
+    using namespace optionparser_v2;
+    auto positional_identifier_root =
+        makePositionalIdentifier("git", "git",
+                                 {makePositionalIdentifier("clone", "clone"),
+                                  makePositionalIdentifier("pull", "pull")});
+
+    std::string_view input_string = "git p";
+
+    std::vector<std::string_view> suggestions =
+        optionparser_v2::nextTokenSuggestions(positional_identifier_root,
+                                              input_string);
+    EXPECT_EQ(suggestions.size(), 1);
+    EXPECT_THAT(suggestions, ::testing::Contains("pull"));
+}
+
+TEST(nextTokenSuggestions, PositionalIdentifiersNotFound) {
+    using namespace optionparser_v2;
+    auto positional_identifier_root =
+        makePositionalIdentifier("git", "git",
+                                 {makePositionalIdentifier("clone", "clone"),
+                                  makePositionalIdentifier("pull", "pull")});
+
+    std::string_view input_string = "gsd";
+
+    std::vector<std::string_view> suggestions =
+        optionparser_v2::nextTokenSuggestions(positional_identifier_root,
+                                              input_string);
+    EXPECT_EQ(suggestions.size(), 0);
 }

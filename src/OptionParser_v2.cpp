@@ -70,6 +70,15 @@ Component::getParameters() const {
     return parameters;
 }
 
+std::vector<std::reference_wrapper<const Component>>
+Component::getChildren() const {
+    std::vector<std::reference_wrapper<const Component>> children;
+    for (const auto &child : m_children) {
+        children.push_back(std::ref(child));
+    }
+    return children;
+}
+
 Component makeParameter(std::string display_name, std::string description,
                         std::vector<Component> &&children) {
     return Component(ComponentType::Parameter, std::move(display_name), "",
@@ -89,9 +98,6 @@ Component makePositionalIdentifier(std::string name, std::string description,
     return Component(ComponentType::PositionalIdentifier, std::move(name), "",
                      std::move(description), std::move(children));
 }
-
-// std::optional<ParseResult> parseComplete(const Component& root_component,
-// std::string_view input_string);
 
 std::vector<std::string_view> tokenize(std::string_view input_string) {
     std::vector<std::string_view> tokens;
@@ -266,8 +272,8 @@ parseTokens(const Component &component,
     return std::make_pair(parse_result, begin);
 }
 
-std::optional<ParseResult> parseIncomplete(const Component &root_component,
-                                           std::string_view input_string) {
+std::optional<ParseResult> parse(const Component &root_component,
+                                 std::string_view input_string) {
     // tokenize input_string
     std::vector<std::string_view> tokens = tokenize(input_string);
 
@@ -277,6 +283,74 @@ std::optional<ParseResult> parseIncomplete(const Component &root_component,
         return std::nullopt;
     }
     return res->first;
+}
+
+const ParseResult &getLastParseResult(const ParseResult &parse_result) {
+    if (parse_result.m_children.empty()) {
+        return parse_result;
+    }
+    return getLastParseResult(parse_result.m_children.back());
+}
+
+std::vector<std::string_view>
+nextTokenSuggestionsComponent(const Component &component) {
+
+    std::vector<std::string_view> suggestions;
+
+    for (const auto &child_component_ref : component.getChildren()) {
+        const Component &child_component = child_component_ref.get();
+        if (child_component.isFlag()) {
+            suggestions.push_back("--" + child_component.getName());
+        } else if (child_component.isPositionalIdentifier()) {
+            suggestions.push_back(child_component.getName());
+        }
+    }
+
+    return suggestions;
+}
+
+std::vector<std::string_view>
+nextTokenSuggestions(const Component &root_component,
+                     const std::string_view &input_string) {
+    // tokenize input_string
+    std::vector<std::string_view> tokens = tokenize(input_string);
+
+    // if parse failed, suggest next token based on last token and
+    // root_component
+    std::reference_wrapper<const Component> component = root_component;
+    std::string_view token = (tokens.empty() ? "" : tokens.back());
+
+    // build parse tree
+    auto res = parseTokens(root_component, tokens.begin(), tokens.end());
+    if (res.has_value()) {
+        // if parse succeeded, suggest next token based on last token and last
+        // parse result
+        const ParseResult &last_parse_result = getLastParseResult(res->first);
+        component = *last_parse_result.m_component;
+
+        // get last token
+        if (res->second != tokens.end()) {
+            //  if there are unparsed tokens, suggest next token based on last
+            //  token (uncomplete)
+            token = *res->second;
+        } else {
+            // if there are no unparsed tokens, suggest next token based on
+            // empty string (the last token was complete)
+            token = "";
+        }
+    }
+
+    std::vector<std::string_view> suggestions =
+        nextTokenSuggestionsComponent(root_component);
+    // remove suggestions that don't start with token
+    suggestions.erase(
+        std::remove_if(suggestions.begin(), suggestions.end(),
+                       [&token](const std::string_view &suggestion) {
+                           return !std::equal(token.begin(), token.end(),
+                                              suggestion.begin());
+                       }),
+        suggestions.end());
+    return suggestions;
 }
 
 std::string serializeResult(const ParseResult &result) {
