@@ -1,6 +1,7 @@
 
 #include "OptionParser_v2.hpp"
 
+#include <cassert>
 #include <iostream>
 
 namespace optionparser_v2 {
@@ -17,15 +18,27 @@ OutputIt moveIfAndErase(Container &source, OutputIt d_first,
     return ret;
 }
 
+std::vector<std::string> defaultSuggestionsFunc(const Component &component,
+                                                std::string_view input_token) {
+    std::vector<std::string> suggestions;
+
+    if (component.isParameter()) {
+        return suggestions;
+    }
+    if (component.getName().starts_with(input_token)) {
+        suggestions.push_back(component.getName());
+    }
+
+    return suggestions;
+}
+
 Component::Component(ComponentType type, std::string name,
                      std::string short_name, std::string description,
-                     std::vector<Component> &&children) {
-    m_type = type;
-    m_name = std::move(name);
-    m_short_name = std::move(short_name);
-    m_description = std::move(description);
-    m_children = std::move(children);
-}
+                     std::vector<Component> &&children,
+                     SuggestionsFunc suggestions_func)
+    : m_type(type), m_name(name), m_short_name(short_name),
+      m_description(description), m_children(children),
+      m_suggestions_func(suggestions_func) {}
 
 ComponentType Component::getType() const { return m_type; }
 bool Component::isParameter() const {
@@ -79,24 +92,34 @@ Component::getChildren() const {
     return children;
 }
 
+std::vector<std::string>
+Component::getSuggestions(std::string_view input_token) const {
+    assert(m_suggestions_func);
+    return m_suggestions_func(*this, input_token);
+}
+
 Component makeParameter(std::string display_name, std::string description,
-                        std::vector<Component> &&children) {
+                        std::vector<Component> &&children,
+                        SuggestionsFunc suggestions_func) {
     return Component(ComponentType::Parameter, std::move(display_name), "",
-                     std::move(description), std::move(children));
+                     std::move(description), std::move(children),
+                     suggestions_func);
 }
 
 Component makeFlag(std::string name, std::string short_name,
-                   std::string description,
-                   std::vector<Component> &&parameters) {
+                   std::string description, std::vector<Component> &&parameters,
+                   SuggestionsFunc suggestions_func) {
     return Component(ComponentType::Flag, std::move(name),
                      std::move(short_name), std::move(description),
-                     std::move(parameters));
+                     std::move(parameters), suggestions_func);
 }
 
 Component makePositionalIdentifier(std::string name, std::string description,
-                                   std::vector<Component> &&children) {
+                                   std::vector<Component> &&children,
+                                   SuggestionsFunc suggestions_func) {
     return Component(ComponentType::PositionalIdentifier, std::move(name), "",
-                     std::move(description), std::move(children));
+                     std::move(description), std::move(children),
+                     suggestions_func);
 }
 
 std::vector<std::string_view> tokenize(std::string_view input_string) {
@@ -143,14 +166,6 @@ std::vector<std::string_view> tokenize(std::string_view input_string) {
     }
 
     return tokens;
-}
-
-bool isFlagName(std::string_view token, const Component &component) {
-    return component.isFlag() && token == "--" + component.getName();
-}
-
-bool isFlagShortName(std::string_view token, const Component &component) {
-    return component.isFlag() && token == "-" + component.getShortName();
 }
 
 std::optional<std::pair<ParseResult, std::vector<std::string_view>::iterator>>
@@ -246,8 +261,8 @@ parseTokens(const Component &component,
         ++begin;
     } else if (component.isFlag()) {
         // check if token matches flag
-        if (!isFlagName(*begin, component) &&
-            !isFlagShortName(*begin, component)) {
+        if (*begin != component.getName() &&
+            *begin != component.getShortName()) {
             return std::nullopt;
         }
         parse_result = ParseResult{*begin, &component, {}};
@@ -285,6 +300,25 @@ std::optional<ParseResult> parse(const Component &root_component,
     return res->first;
 }
 
+std::optional<ParseResult>
+parseMulti(const std::vector<Component> &root_components,
+           std::string_view input_string) {
+
+    // tokenize input_string
+    std::vector<std::string_view> tokens = tokenize(input_string);
+
+    // try to parse root_components in order, return the first successful parse
+    ParseResult parse_result;
+    for (const auto &root_component : root_components) {
+        auto res = parseTokens(root_component, tokens.begin(), tokens.end());
+        if (res.has_value()) {
+            return res->first;
+        }
+    }
+
+    return std::nullopt;
+}
+
 const ParseResult &getLastParseResult(const ParseResult &parse_result) {
     if (parse_result.m_children.empty()) {
         return parse_result;
@@ -292,24 +326,24 @@ const ParseResult &getLastParseResult(const ParseResult &parse_result) {
     return getLastParseResult(parse_result.m_children.back());
 }
 
-std::vector<std::string_view>
-nextTokenSuggestionsComponent(const Component &component) {
+std::vector<std::string>
+nextTokenSuggestionsComponent(const Component &component,
+                              std::string_view token) {
 
-    std::vector<std::string_view> suggestions;
+    std::vector<std::string> suggestions;
 
     for (const auto &child_component_ref : component.getChildren()) {
         const Component &child_component = child_component_ref.get();
-        if (child_component.isFlag()) {
-            suggestions.push_back("--" + child_component.getName());
-        } else if (child_component.isPositionalIdentifier()) {
-            suggestions.push_back(child_component.getName());
-        }
+
+        auto child_suggestions = child_component.getSuggestions(token);
+        suggestions.insert(suggestions.end(), child_suggestions.begin(),
+                           child_suggestions.end());
     }
 
     return suggestions;
 }
 
-std::vector<std::string_view>
+std::vector<std::string>
 nextTokenSuggestions(const Component &root_component,
                      const std::string_view &input_string) {
     // tokenize input_string
@@ -340,16 +374,9 @@ nextTokenSuggestions(const Component &root_component,
         }
     }
 
-    std::vector<std::string_view> suggestions =
-        nextTokenSuggestionsComponent(root_component);
-    // remove suggestions that don't start with token
-    suggestions.erase(
-        std::remove_if(suggestions.begin(), suggestions.end(),
-                       [&token](const std::string_view &suggestion) {
-                           return !std::equal(token.begin(), token.end(),
-                                              suggestion.begin());
-                       }),
-        suggestions.end());
+    std::vector<std::string> suggestions =
+        nextTokenSuggestionsComponent(root_component, token);
+
     return suggestions;
 }
 

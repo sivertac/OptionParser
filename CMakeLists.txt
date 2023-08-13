@@ -15,7 +15,7 @@ target_include_directories(
     PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-target_compile_features(OptionParser PRIVATE cxx_std_17)
+target_compile_features(OptionParser PRIVATE cxx_std_20)
 
 # Install
 install(TARGETS OptionParser LIBRARY PUBLIC_HEADER)
