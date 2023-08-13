@@ -1,5 +1,10 @@
-# OptionParser
-A C++17 string parser library. 
+# OptionParser_v2
+A C++20 command line parser library. 
+
+
+
+# Legacy OptionParser
+A C++17 command line parser library.
 The goal is to extract simple structure out of strings in a similar fashion to how *nix command line programs use flags to specify options.
 To use the library, specify how you want the structure of the string to look in the template parameters, and a parser will be generated.
 					
@@ -8,7 +13,7 @@ A spesific implemtation optimization is the use of C++17 std::string_view, to ha
 The library is statically typed, which means that you will get a compile time error if you try to access a result member(option) that is not part of the parser generated.
 
 ## Requirements
-C++17 or later compatible compiler.
+C++20 or later compatible compiler.
 
 ## Examples
 How a mini version of the gcc command (man gcc) would be implemented in OptionParser. (In some of the gcc options, the option and arguments are not separated. OptionParser is always using spaces.)

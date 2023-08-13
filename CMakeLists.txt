@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15.2)
 
 option(NO_TESTS "Do not build tests" OFF)
 
-project(OptionParser VERSION 0.0.2 LANGUAGES CXX)
+project(OptionParser VERSION 0.1.0 LANGUAGES CXX)
 
 # Library
 add_library(OptionParser STATIC 

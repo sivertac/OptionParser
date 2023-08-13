@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <sstream>
 
 namespace optionparser_v2 {
 
