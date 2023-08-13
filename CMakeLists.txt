@@ -9,7 +9,10 @@ add_library(OptionParser STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/OptionParser.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/OptionParser_v2.cpp
 )
-set_target_properties(OptionParser PROPERTIES PUBLIC_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/src/OptionParser.hpp)
+
+set_target_properties(OptionParser PROPERTIES PUBLIC_HEADER 
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/OptionParser.hpp;${CMAKE_CURRENT_SOURCE_DIR}/src/OptionParser_v2.hpp"
+)
 target_include_directories(
     OptionParser
     PUBLIC
