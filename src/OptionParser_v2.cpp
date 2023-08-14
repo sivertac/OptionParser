@@ -46,9 +46,7 @@ bool Component::isParameter() const {
     return m_type == ComponentType::Parameter;
 }
 bool Component::isFlag() const { return m_type == ComponentType::Flag; }
-bool Component::isPositionalIdentifier() const {
-    return m_type == ComponentType::PositionalIdentifier;
-}
+bool Component::isCommand() const { return m_type == ComponentType::Command; }
 const std::string &Component::getName() const { return m_name; }
 const std::string &Component::getShortName() const { return m_short_name; }
 const std::string &Component::getDescription() const { return m_description; }
@@ -64,14 +62,14 @@ Component::getFlags() const {
     return flags;
 }
 std::vector<std::reference_wrapper<const Component>>
-Component::getPositionalIdentifiers() const {
-    std::vector<std::reference_wrapper<const Component>> positional_identifiers;
+Component::getCommands() const {
+    std::vector<std::reference_wrapper<const Component>> commands;
     for (const auto &child : m_children) {
-        if (child.isPositionalIdentifier()) {
-            positional_identifiers.push_back(std::ref(child));
+        if (child.isCommand()) {
+            commands.push_back(std::ref(child));
         }
     }
-    return positional_identifiers;
+    return commands;
 }
 std::vector<std::reference_wrapper<const Component>>
 Component::getParameters() const {
@@ -115,10 +113,10 @@ Component makeFlag(std::string name, std::string short_name,
                      std::move(parameters), suggestions_func);
 }
 
-Component makePositionalIdentifier(std::string name, std::string description,
-                                   std::vector<Component> &&children,
-                                   SuggestionsFunc suggestions_func) {
-    return Component(ComponentType::PositionalIdentifier, std::move(name), "",
+Component makeCommand(std::string name, std::string description,
+                      std::vector<Component> &&children,
+                      SuggestionsFunc suggestions_func) {
+    return Component(ComponentType::Command, std::move(name), "",
                      std::move(description), std::move(children),
                      suggestions_func);
 }
@@ -183,13 +181,13 @@ parseChildren(const Component &component,
 
     // Presidence:
     // 1. Flags
-    // 2. Positional identifiers
+    // 2. Commands
     // 3. Parameters
 
-    // If we find a token that is not a valid flag, positional identifier, or
+    // If we find a token that is not a valid flag, command, or
     // parameter, then stop parsing children and return what we have so far
 
-    // for each token, check if flag or positional identifier, if not, then it's
+    // for each token, check if flag or command, if not, then it's
     // a parameter
     size_t parameter_count = 0;
     while (begin != end) {
@@ -209,19 +207,18 @@ parseChildren(const Component &component,
             continue;
         }
 
-        // check if token matches any positional identifier
-        bool positional_identifier_found = false;
-        for (const auto &positional_identifier :
-             component.getPositionalIdentifiers()) {
-            auto res = parseTokens(positional_identifier, begin, end);
+        // check if token matches any command
+        bool command_found = false;
+        for (const auto &command : component.getCommands()) {
+            auto res = parseTokens(command, begin, end);
             if (res.has_value()) {
                 children.push_back(res->first);
                 begin = res->second;
-                positional_identifier_found = true;
+                command_found = true;
                 break;
             }
         }
-        if (positional_identifier_found) {
+        if (command_found) {
             continue;
         }
 
@@ -268,7 +265,7 @@ parseTokens(const Component &component,
         }
         parse_result = ParseResult{*begin, &component, {}};
         ++begin;
-    } else if (component.isPositionalIdentifier()) {
+    } else if (component.isCommand()) {
         // check if token matches name
         if (*begin != component.getName()) {
             return std::nullopt;

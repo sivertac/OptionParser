@@ -1,7 +1,13 @@
 # OptionParser_v2
 A C++20 command line parser library. 
 
+## How to format code
+Use clang-format with the provided .clang-format file.
 
+Example from repo root:
+```bash
+clang-format -i src/*pp test/*pp
+```
 
 # Legacy OptionParser
 A C++17 command line parser library.
