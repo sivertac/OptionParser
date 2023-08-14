@@ -12,7 +12,7 @@
 
 namespace optionparser_v2 {
 
-enum class ComponentType { Parameter, Flag, PositionalIdentifier };
+enum class ComponentType { Parameter, Flag, Command };
 
 class Component;
 
@@ -41,15 +41,14 @@ public:
     ComponentType getType() const;
     bool isParameter() const;
     bool isFlag() const;
-    bool isPositionalIdentifier() const;
+    bool isCommand() const;
 
     const std::string &getName() const;
     const std::string &getShortName() const;
     const std::string &getDescription() const;
 
     std::vector<std::reference_wrapper<const Component>> getFlags() const;
-    std::vector<std::reference_wrapper<const Component>>
-    getPositionalIdentifiers() const;
+    std::vector<std::reference_wrapper<const Component>> getCommands() const;
     std::vector<std::reference_wrapper<const Component>> getParameters() const;
     std::vector<std::reference_wrapper<const Component>> getChildren() const;
 
@@ -74,10 +73,10 @@ Component makeFlag(std::string name, std::string short_name,
                    std::vector<Component> &&children = {},
                    SuggestionsFunc suggestions_func = defaultSuggestionsFunc);
 
-Component makePositionalIdentifier(
-    std::string name, std::string description,
-    std::vector<Component> &&children = {},
-    SuggestionsFunc suggestions_func = defaultSuggestionsFunc);
+Component
+makeCommand(std::string name, std::string description,
+            std::vector<Component> &&children = {},
+            SuggestionsFunc suggestions_func = defaultSuggestionsFunc);
 
 struct ParseResult {
     std::string_view m_value;

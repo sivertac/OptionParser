@@ -102,35 +102,34 @@ TEST(parse, FlagOneWord) {
     EXPECT_TRUE(result->m_component->isFlag());
 }
 
-TEST(parse, PositionalIdentifierOneWord) {
+TEST(parse, CommandOneWord) {
     using namespace optionparser_v2;
-    auto positional_identifier =
-        makePositionalIdentifier("clone", "Clone a repository", {});
+    auto command = makeCommand("clone", "Clone a repository", {});
 
     std::string_view input_string = "clone";
     std::optional<ParseResult> result =
-        optionparser_v2::parse(positional_identifier, input_string);
+        optionparser_v2::parse(command, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "clone");
-    EXPECT_TRUE(result->m_component->isPositionalIdentifier());
+    EXPECT_TRUE(result->m_component->isCommand());
 }
 
-TEST(parse, PositionalIdentifierContainingParameterAndFlag) {
+TEST(parse, CommandContainingParameterAndFlag) {
     using namespace optionparser_v2;
     auto parameter = makeParameter("url", "URL of repository");
     auto flag = makeFlag("--help", "-h", "Print help message", {});
     std::vector<Component> children;
     children.push_back(std::move(parameter));
     children.push_back(std::move(flag));
-    auto positional_identifier = makePositionalIdentifier(
-        "clone", "Clone a repository", std::move(children));
+    auto command =
+        makeCommand("clone", "Clone a repository", std::move(children));
 
     std::string_view input_string = "clone --help yo";
     std::optional<ParseResult> result =
-        optionparser_v2::parse(positional_identifier, input_string);
+        optionparser_v2::parse(command, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "clone");
-    EXPECT_EQ(result->m_component, &positional_identifier);
+    EXPECT_EQ(result->m_component, &command);
     EXPECT_EQ(result->m_children.size(), 2);
     EXPECT_EQ(result->m_children[0].m_value, "--help");
     EXPECT_TRUE(result->m_children[0].m_component->isFlag());
@@ -138,60 +137,88 @@ TEST(parse, PositionalIdentifierContainingParameterAndFlag) {
     EXPECT_TRUE(result->m_children[1].m_component->isParameter());
 }
 
-TEST(parse,
-     PositionalIdentifierContainingParameterAndFlagAndPositionalIdentifier) {
+TEST(parse, CommandContainingParameterAndFlagAndCommand) {
     using namespace optionparser_v2;
     auto parameter = makeParameter("url", "URL of repository");
     auto flag = makeFlag("--help", "-h", "Print help message", {});
-    auto positional_identifier =
-        makePositionalIdentifier("clone", "Clone a repository", {});
+    auto command = makeCommand("clone", "Clone a repository", {});
     std::vector<Component> children;
     children.push_back(std::move(parameter));
     children.push_back(std::move(flag));
-    children.push_back(std::move(positional_identifier));
-    auto positional_identifier2 = makePositionalIdentifier(
-        "pull", "Pull a repository", std::move(children));
+    children.push_back(std::move(command));
+    auto command2 =
+        makeCommand("pull", "Pull a repository", std::move(children));
 
     std::string_view input_string = "pull clone --help yo";
     std::optional<ParseResult> result =
-        optionparser_v2::parse(positional_identifier2, input_string);
+        optionparser_v2::parse(command2, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "pull");
-    EXPECT_EQ(result->m_component, &positional_identifier2);
+    EXPECT_EQ(result->m_component, &command2);
     EXPECT_EQ(result->m_children.size(), 3);
     EXPECT_EQ(result->m_children[0].m_value, "clone");
-    EXPECT_TRUE(result->m_children[0].m_component->isPositionalIdentifier());
+    EXPECT_TRUE(result->m_children[0].m_component->isCommand());
     EXPECT_EQ(result->m_children[1].m_value, "--help");
     EXPECT_TRUE(result->m_children[1].m_component->isFlag());
     EXPECT_EQ(result->m_children[2].m_value, "yo");
     EXPECT_TRUE(result->m_children[2].m_component->isParameter());
 }
 
-TEST(parseMulti, TwoPositionalIdentifiers) {
+TEST(parseMulti, TwoCommands) {
     using namespace optionparser_v2;
-    auto positional_identifier1 =
-        makePositionalIdentifier("clone", "Clone a repository", {});
-    auto positional_identifier2 =
-        makePositionalIdentifier("pull", "Pull a repository", {});
-    std::vector<Component> positional_identifiers;
-    positional_identifiers.push_back(std::move(positional_identifier1));
-    positional_identifiers.push_back(std::move(positional_identifier2));
+    auto command1 = makeCommand("clone", "Clone a repository", {});
+    auto command2 = makeCommand("pull", "Pull a repository", {});
+    std::vector<Component> commands;
+    commands.push_back(std::move(command1));
+    commands.push_back(std::move(command2));
 
     std::string_view input_string = "clone";
     std::optional<ParseResult> result =
-        optionparser_v2::parseMulti(positional_identifiers, input_string);
+        optionparser_v2::parseMulti(commands, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "clone");
-    EXPECT_EQ(result->m_component, &positional_identifiers[0]);
+    EXPECT_EQ(result->m_component, &commands[0]);
 
     input_string = "pull";
-    result = optionparser_v2::parseMulti(positional_identifiers, input_string);
+    result = optionparser_v2::parseMulti(commands, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "pull");
-    EXPECT_EQ(result->m_component, &positional_identifiers[1]);
+    EXPECT_EQ(result->m_component, &commands[1]);
 
     input_string = "none";
-    result = optionparser_v2::parseMulti(positional_identifiers, input_string);
+    result = optionparser_v2::parseMulti(commands, input_string);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(parse, FlagEmptyShortName) {
+    using namespace optionparser_v2;
+    auto flag = makeFlag("--help", "", "Print help message", {});
+
+    std::string_view input_string = "--help";
+    std::optional<ParseResult> result =
+        optionparser_v2::parse(flag, input_string);
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(result->m_value, "--help");
+    EXPECT_TRUE(result->m_component->isFlag());
+
+    input_string = "   ";
+    result = optionparser_v2::parse(flag, input_string);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(parse, FlagEmptyName) {
+    using namespace optionparser_v2;
+    auto flag = makeFlag("", "-h", "Print help message", {});
+
+    std::string_view input_string = "-h";
+    std::optional<ParseResult> result =
+        optionparser_v2::parse(flag, input_string);
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(result->m_value, "-h");
+    EXPECT_TRUE(result->m_component->isFlag());
+
+    input_string = "   ";
+    result = optionparser_v2::parse(flag, input_string);
     EXPECT_FALSE(result.has_value());
 }
 
@@ -228,97 +255,87 @@ TEST(serializeResult, FlagWithParameter) {
     EXPECT_EQ(serialized, input_string);
 }
 
-TEST(serializeResult, PositionalIdentifierWithFlagAndParameter) {
+TEST(serializeResult, CommandWithFlagAndParameter) {
     using namespace optionparser_v2;
     auto parameter = makeParameter("one", "one");
     auto flag = makeFlag("--help", "-h", "Print help message");
-    auto positional_identifier = makePositionalIdentifier(
-        "clone", "Clone a repository", {flag, parameter});
+    auto command =
+        makeCommand("clone", "Clone a repository", {flag, parameter});
 
     std::string_view input_string = "clone one --help";
     std::optional<ParseResult> result =
-        optionparser_v2::parse(positional_identifier, input_string);
+        optionparser_v2::parse(command, input_string);
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result->m_value, "clone");
-    EXPECT_TRUE(result->m_component->isPositionalIdentifier());
+    EXPECT_TRUE(result->m_component->isCommand());
 
     std::string serialized = optionparser_v2::serializeResult(*result);
     EXPECT_EQ(serialized, input_string);
 }
 
-TEST(nextTokenSuggestions, TwoPositionalIdentifiers) {
+TEST(nextTokenSuggestions, TwoCommands) {
     using namespace optionparser_v2;
-    auto positional_identifier_root =
-        makePositionalIdentifier("git", "git",
-                                 {makePositionalIdentifier("clone", "clone"),
-                                  makePositionalIdentifier("pull", "pull")});
+    auto command_root = makeCommand(
+        "git", "git",
+        {makeCommand("clone", "clone"), makeCommand("pull", "pull")});
 
     std::string_view input_string = "git ";
 
     std::vector<std::string> suggestions =
-        optionparser_v2::nextTokenSuggestions(positional_identifier_root,
-                                              input_string);
+        optionparser_v2::nextTokenSuggestions(command_root, input_string);
     EXPECT_EQ(suggestions.size(), 2);
     EXPECT_THAT(suggestions, ::testing::Contains("clone"));
     EXPECT_THAT(suggestions, ::testing::Contains("pull"));
 }
 
-TEST(nextTokenSuggestions, TwoPositionalIdentifiersPrefix) {
+TEST(nextTokenSuggestions, TwoCommandsPrefix) {
     using namespace optionparser_v2;
-    auto positional_identifier_root =
-        makePositionalIdentifier("git", "git",
-                                 {makePositionalIdentifier("clone", "clone"),
-                                  makePositionalIdentifier("pull", "pull")});
+    auto command_root = makeCommand(
+        "git", "git",
+        {makeCommand("clone", "clone"), makeCommand("pull", "pull")});
 
     std::string_view input_string = "git p";
 
     std::vector<std::string> suggestions =
-        optionparser_v2::nextTokenSuggestions(positional_identifier_root,
-                                              input_string);
+        optionparser_v2::nextTokenSuggestions(command_root, input_string);
     EXPECT_EQ(suggestions.size(), 1);
     EXPECT_THAT(suggestions, ::testing::Contains("pull"));
 }
 
-TEST(nextTokenSuggestions, PositionalIdentifiersNotFound) {
+TEST(nextTokenSuggestions, CommandsNotFound) {
     using namespace optionparser_v2;
-    auto positional_identifier_root =
-        makePositionalIdentifier("git", "git",
-                                 {makePositionalIdentifier("clone", "clone"),
-                                  makePositionalIdentifier("pull", "pull")});
+    auto command_root = makeCommand(
+        "git", "git",
+        {makeCommand("clone", "clone"), makeCommand("pull", "pull")});
 
     std::string_view input_string = "gsd";
 
     std::vector<std::string> suggestions =
-        optionparser_v2::nextTokenSuggestions(positional_identifier_root,
-                                              input_string);
+        optionparser_v2::nextTokenSuggestions(command_root, input_string);
     EXPECT_EQ(suggestions.size(), 0);
 }
 
 TEST(nextTokenSuggestions, Parameter) {
     using namespace optionparser_v2;
     auto parameter = makeParameter("url", "URL of repository");
-    auto positional_identifier =
-        makePositionalIdentifier("clone", "Clone a repository", {parameter});
+    auto command = makeCommand("clone", "Clone a repository", {parameter});
 
     std::string_view input_string = "clone ";
 
     std::vector<std::string> suggestions =
-        optionparser_v2::nextTokenSuggestions(positional_identifier,
-                                              input_string);
+        optionparser_v2::nextTokenSuggestions(command, input_string);
     EXPECT_EQ(suggestions.size(), 0);
 }
 
 TEST(nextTokenSuggestions, Flag) {
     using namespace optionparser_v2;
     auto flag = makeFlag("--help", "-h", "Print help message");
-    auto positional_identifier =
-        makePositionalIdentifier("clone", "Clone a repository", {flag});
+    auto command = makeCommand("clone", "Clone a repository", {flag});
 
     std::string_view input_string = "clone ";
 
     std::vector<std::string> suggestions =
-        optionparser_v2::nextTokenSuggestions(positional_identifier,
-                                              input_string);
+        optionparser_v2::nextTokenSuggestions(command, input_string);
     EXPECT_EQ(suggestions.size(), 1);
     EXPECT_THAT(suggestions, ::testing::Contains("--help"));
 }
@@ -330,14 +347,12 @@ TEST(nextTokenSuggestions, ParameterCustomSuggestions) {
         [](const Component &, std::string_view) {
             return std::vector<std::string>{"one", "two", "three"};
         });
-    auto positional_identifier =
-        makePositionalIdentifier("clone", "Clone a repository", {parameter});
+    auto command = makeCommand("clone", "Clone a repository", {parameter});
 
     std::string_view input_string = "clone ";
 
     std::vector<std::string> suggestions =
-        optionparser_v2::nextTokenSuggestions(positional_identifier,
-                                              input_string);
+        optionparser_v2::nextTokenSuggestions(command, input_string);
     EXPECT_EQ(suggestions.size(), 3);
     EXPECT_THAT(suggestions, ::testing::Contains("one"));
     EXPECT_THAT(suggestions, ::testing::Contains("two"));
@@ -346,34 +361,29 @@ TEST(nextTokenSuggestions, ParameterCustomSuggestions) {
 
 TEST(nextTokenSuggestions, SpaceVsNoSpaceInputStringEnd) {
     using namespace optionparser_v2;
-    auto positional_identifier =
-        makePositionalIdentifier("clone", "Clone a repository", {});
+    auto command = makeCommand("clone", "Clone a repository", {});
 
     std::string_view input_string = "clone";
 
     std::vector<std::string> suggestions =
-        optionparser_v2::nextTokenSuggestions(positional_identifier,
-                                              input_string);
+        optionparser_v2::nextTokenSuggestions(command, input_string);
     EXPECT_EQ(suggestions.size(), 1);
     EXPECT_THAT(suggestions, ::testing::Contains("clone"));
 
     input_string = "clone ";
 
-    suggestions = optionparser_v2::nextTokenSuggestions(positional_identifier,
-                                                        input_string);
+    suggestions = optionparser_v2::nextTokenSuggestions(command, input_string);
     EXPECT_EQ(suggestions.size(), 0);
 }
 
-TEST(nextTokenSuggestionsMulti, MultiplePositionalIdentifierRoots) {
+TEST(nextTokenSuggestionsMulti, MultipleCommandRoots) {
     using namespace optionparser_v2;
-    auto positional_identifier_root1 =
-        makePositionalIdentifier("one", "one",
-                                 {makePositionalIdentifier("clone", "clone"),
-                                  makePositionalIdentifier("pull", "pull")});
-    auto positional_identifier_root2 =
-        makePositionalIdentifier("two", "two",
-                                 {makePositionalIdentifier("commit", "commit"),
-                                  makePositionalIdentifier("push", "push")});
+    auto command_root1 = makeCommand(
+        "one", "one",
+        {makeCommand("clone", "clone"), makeCommand("pull", "pull")});
+    auto command_root2 = makeCommand(
+        "two", "two",
+        {makeCommand("commit", "commit"), makeCommand("push", "push")});
 
     std::string_view input_string;
     std::vector<std::string> suggestions;
@@ -381,8 +391,7 @@ TEST(nextTokenSuggestionsMulti, MultiplePositionalIdentifierRoots) {
     input_string = "";
 
     suggestions = optionparser_v2::nextTokenSuggestionsMulti(
-        {positional_identifier_root1, positional_identifier_root2},
-        input_string);
+        {command_root1, command_root2}, input_string);
 
     EXPECT_EQ(suggestions.size(), 2);
     EXPECT_THAT(suggestions, ::testing::Contains("one"));
@@ -391,8 +400,7 @@ TEST(nextTokenSuggestionsMulti, MultiplePositionalIdentifierRoots) {
     input_string = "o";
 
     suggestions = optionparser_v2::nextTokenSuggestionsMulti(
-        {positional_identifier_root1, positional_identifier_root2},
-        input_string);
+        {command_root1, command_root2}, input_string);
 
     EXPECT_EQ(suggestions.size(), 1);
     EXPECT_THAT(suggestions, ::testing::Contains("one"));
@@ -400,8 +408,7 @@ TEST(nextTokenSuggestionsMulti, MultiplePositionalIdentifierRoots) {
     input_string = "two";
 
     suggestions = optionparser_v2::nextTokenSuggestionsMulti(
-        {positional_identifier_root1, positional_identifier_root2},
-        input_string);
+        {command_root1, command_root2}, input_string);
 
     EXPECT_EQ(suggestions.size(), 1);
     EXPECT_THAT(suggestions, ::testing::Contains("two"));
