@@ -253,7 +253,7 @@ TEST(nextTokenSuggestions, TwoPositionalIdentifiers) {
                                  {makePositionalIdentifier("clone", "clone"),
                                   makePositionalIdentifier("pull", "pull")});
 
-    std::string_view input_string = "git";
+    std::string_view input_string = "git ";
 
     std::vector<std::string> suggestions =
         optionparser_v2::nextTokenSuggestions(positional_identifier_root,
@@ -327,7 +327,7 @@ TEST(nextTokenSuggestions, ParameterCustomSuggestions) {
     using namespace optionparser_v2;
     auto parameter = makeParameter(
         "url", "URL of repository", {},
-        [](const Component &component, std::string_view token) {
+        [](const Component &, std::string_view) {
             return std::vector<std::string>{"one", "two", "three"};
         });
     auto positional_identifier =
@@ -342,4 +342,67 @@ TEST(nextTokenSuggestions, ParameterCustomSuggestions) {
     EXPECT_THAT(suggestions, ::testing::Contains("one"));
     EXPECT_THAT(suggestions, ::testing::Contains("two"));
     EXPECT_THAT(suggestions, ::testing::Contains("three"));
+}
+
+TEST(nextTokenSuggestions, SpaceVsNoSpaceInputStringEnd) {
+    using namespace optionparser_v2;
+    auto positional_identifier =
+        makePositionalIdentifier("clone", "Clone a repository", {});
+
+    std::string_view input_string = "clone";
+
+    std::vector<std::string> suggestions =
+        optionparser_v2::nextTokenSuggestions(positional_identifier,
+                                              input_string);
+    EXPECT_EQ(suggestions.size(), 1);
+    EXPECT_THAT(suggestions, ::testing::Contains("clone"));
+
+    input_string = "clone ";
+
+    suggestions = optionparser_v2::nextTokenSuggestions(positional_identifier,
+                                                        input_string);
+    EXPECT_EQ(suggestions.size(), 0);
+}
+
+TEST(nextTokenSuggestionsMulti, MultiplePositionalIdentifierRoots) {
+    using namespace optionparser_v2;
+    auto positional_identifier_root1 =
+        makePositionalIdentifier("one", "one",
+                                 {makePositionalIdentifier("clone", "clone"),
+                                  makePositionalIdentifier("pull", "pull")});
+    auto positional_identifier_root2 =
+        makePositionalIdentifier("two", "two",
+                                 {makePositionalIdentifier("commit", "commit"),
+                                  makePositionalIdentifier("push", "push")});
+
+    std::string_view input_string;
+    std::vector<std::string> suggestions;
+
+    input_string = "";
+
+    suggestions = optionparser_v2::nextTokenSuggestionsMulti(
+        {positional_identifier_root1, positional_identifier_root2},
+        input_string);
+
+    EXPECT_EQ(suggestions.size(), 2);
+    EXPECT_THAT(suggestions, ::testing::Contains("one"));
+    EXPECT_THAT(suggestions, ::testing::Contains("two"));
+
+    input_string = "o";
+
+    suggestions = optionparser_v2::nextTokenSuggestionsMulti(
+        {positional_identifier_root1, positional_identifier_root2},
+        input_string);
+
+    EXPECT_EQ(suggestions.size(), 1);
+    EXPECT_THAT(suggestions, ::testing::Contains("one"));
+
+    input_string = "two";
+
+    suggestions = optionparser_v2::nextTokenSuggestionsMulti(
+        {positional_identifier_root1, positional_identifier_root2},
+        input_string);
+
+    EXPECT_EQ(suggestions.size(), 1);
+    EXPECT_THAT(suggestions, ::testing::Contains("two"));
 }
