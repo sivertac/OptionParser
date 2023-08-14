@@ -232,7 +232,7 @@ parseChildren(const Component &component,
         auto res =
             parseTokens(component.getParameters()[parameter_count], begin, end);
         if (!res.has_value()) {
-            return std::nullopt;
+            break;
         }
         children.push_back(res->first);
         begin = res->second;
@@ -279,11 +279,10 @@ parseTokens(const Component &component,
 
     // parse children
     auto res = parseChildren(component, begin, end);
-    if (!res.has_value()) {
-        return std::nullopt;
+    if (res.has_value()) {
+        parse_result.m_children = std::move(res->first);
+        begin = res->second;
     }
-    parse_result.m_children = std::move(res->first);
-    begin = res->second;
 
     return std::make_pair(parse_result, begin);
 }
@@ -352,31 +351,56 @@ nextTokenSuggestions(const Component &root_component,
 
     // if parse failed, suggest next token based on last token and
     // root_component
-    std::reference_wrapper<const Component> component = root_component;
     std::string_view token = (tokens.empty() ? "" : tokens.back());
 
     // build parse tree
+    std::vector<std::string> suggestions;
     auto res = parseTokens(root_component, tokens.begin(), tokens.end());
     if (res.has_value()) {
         // if parse succeeded, suggest next token based on last token and last
         // parse result
         const ParseResult &last_parse_result = getLastParseResult(res->first);
-        component = *last_parse_result.m_component;
+        const Component &component = *last_parse_result.m_component;
 
         // get last token
         if (res->second != tokens.end()) {
             //  if there are unparsed tokens, suggest next token based on last
             //  token (uncomplete)
             token = *res->second;
+            suggestions = nextTokenSuggestionsComponent(component, token);
         } else {
             // if there are no unparsed tokens, suggest next token based on
             // empty string (the last token was complete)
-            token = "";
+            token = tokens.back();
+
+            // we only want to suggest the next token if we are sure the current
+            // last token is complete, (i.e if the end of the input string is a
+            // seperator)
+            if (input_string.ends_with(token)) {
+                suggestions = component.getSuggestions(token);
+            } else {
+                suggestions = nextTokenSuggestionsComponent(component, "");
+            }
         }
+    } else {
+        suggestions = root_component.getSuggestions(token);
     }
 
-    std::vector<std::string> suggestions =
-        nextTokenSuggestionsComponent(root_component, token);
+    return suggestions;
+}
+
+std::vector<std::string>
+nextTokenSuggestionsMulti(const std::vector<Component> &root_components,
+                          const std::string_view &input_string) {
+
+    std::vector<std::string> suggestions;
+    for (const auto &root_component : root_components) {
+        auto root_component_suggestions =
+            nextTokenSuggestions(root_component, input_string);
+        suggestions.insert(suggestions.end(),
+                           root_component_suggestions.begin(),
+                           root_component_suggestions.end());
+    }
 
     return suggestions;
 }

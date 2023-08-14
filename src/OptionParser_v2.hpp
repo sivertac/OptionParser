@@ -118,6 +118,10 @@ std::vector<std::string>
 nextTokenSuggestions(const Component &root_component,
                      const std::string_view &input_string);
 
+std::vector<std::string>
+nextTokenSuggestionsMulti(const std::vector<Component> &root_components,
+                          const std::string_view &input_string);
+
 std::string serializeResult(const ParseResult &result);
 
 } // namespace optionparser_v2
