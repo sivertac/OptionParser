@@ -190,6 +190,38 @@ TEST(parseMulti, TwoCommands) {
     EXPECT_FALSE(result.has_value());
 }
 
+TEST(parse, FlagEmptyShortName) {
+    using namespace optionparser_v2;
+    auto flag = makeFlag("--help", "", "Print help message", {});
+
+    std::string_view input_string = "--help";
+    std::optional<ParseResult> result =
+        optionparser_v2::parse(flag, input_string);
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(result->m_value, "--help");
+    EXPECT_TRUE(result->m_component->isFlag());
+
+    input_string = "   ";
+    result = optionparser_v2::parse(flag, input_string);
+    EXPECT_FALSE(result.has_value());
+}
+
+TEST(parse, FlagEmptyName) {
+    using namespace optionparser_v2;
+    auto flag = makeFlag("", "-h", "Print help message", {});
+
+    std::string_view input_string = "-h";
+    std::optional<ParseResult> result =
+        optionparser_v2::parse(flag, input_string);
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(result->m_value, "-h");
+    EXPECT_TRUE(result->m_component->isFlag());
+
+    input_string = "   ";
+    result = optionparser_v2::parse(flag, input_string);
+    EXPECT_FALSE(result.has_value());
+}
+
 TEST(serializeResult, TwoParameters) {
     using namespace optionparser_v2;
     auto parameter1 =
