@@ -1,6 +1,13 @@
 # OptionParser_v2
 A C++20 command line parser library. 
 
+## Release checklist
+1. Update project version in `CMakeLists.txt`
+2. Update `CHANGELOG.md`
+3. Update `README.md` if needed
+4. Create tag and push to github
+5. Create release on github
+
 ## How to format code
 Use clang-format with the provided .clang-format file.
 
