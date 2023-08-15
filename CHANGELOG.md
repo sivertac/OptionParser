@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Added `nextTokenSuggestionsMulti` function to `optionparser_v2`.
+- Added `nextTokenSuggestionsMulti` function to `optionparser_v2`. (https://github.com/sivertac/OptionParser/pull/2)
 - Added `CHANGELOG.md` file.
 
 ### Changed
-- Changed name of `PositionalIdentifier` to `Command` in `optionparser_v2`.
+- Changed name of `PositionalIdentifier` to `Command` in `optionparser_v2`. (https://github.com/sivertac/OptionParser/pull/3)
 
 
 ## [v0.1.0] - 2023-8-13
