@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- Added `ParseContext` to `optionparser_v2`.
+    - `ParseContext` is used to store the state of the parser, allowing tokens to be fed to the parser one at a time.
+
 ## [v0.2.1]
 ### Fixed
 - Set correct project version in `CMakeLists.txt`.

@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <stack>
 #include <string>
 #include <variant>
 #include <vector>
@@ -52,6 +53,8 @@ public:
     std::vector<std::reference_wrapper<const Component>> getParameters() const;
     std::vector<std::reference_wrapper<const Component>> getChildren() const;
 
+    std::vector<Component> &getChildrenMutable();
+
     std::vector<std::string> getSuggestions(std::string_view input_token) const;
 
 private:
@@ -82,6 +85,34 @@ struct ParseResult {
     std::string_view m_value;
     const Component *m_component;
     std::vector<ParseResult> m_children;
+};
+
+/// @brief Parse context for parsing a string.
+class ParseContext {
+public:
+    ParseContext(const std::vector<std::reference_wrapper<const Component>>
+                     root_components);
+    ParseContext(const std::vector<Component> &root_components);
+    ParseContext(const Component &root_component);
+
+    /// @brief Add and parse token in context, and update the parse result.
+    /// @param token
+    /// @return True if the token was successfully parsed, false otherwise.
+    bool parseToken(std::string_view token);
+
+    /// @brief Get the suggestions for the next token.
+    /// @return
+    std::vector<std::string>
+    getNextSuggestions(std::string_view token = "") const;
+
+    /// @brief Get the root parse result.
+    /// @return
+    const std::optional<ParseResult> &getRootParseResult() const;
+
+private:
+    std::vector<std::reference_wrapper<const Component>> m_root_components;
+    std::optional<ParseResult> m_root_parse_result = std::nullopt;
+    std::stack<ParseResult *> m_parse_result_stack;
 };
 
 /// @brief Parse the input string

@@ -68,6 +68,40 @@ TEST(tokenize, QuotedStringWithEscapedQuote) {
     EXPECT_EQ(tokens[2], "four");
 }
 
+TEST(ParseContext_parseToken, RecursiveHeterogeneousTree) {
+    using namespace optionparser_v2;
+    int depth = 100;
+    Component root_component = makeCommand("root", "root");
+    std::vector<std::string> string_storage;
+    string_storage.reserve(depth * 2);
+    Component *current_component = &root_component;
+    for (int i = 0; i < depth; ++i) {
+        string_storage.push_back(std::to_string(i));
+        Component child_component = makeCommand(string_storage.back(), "child");
+        current_component->getChildrenMutable().push_back(
+            std::move(child_component));
+        current_component = &current_component->getChildrenMutable().back();
+    }
+
+    ParseContext context(root_component);
+    EXPECT_TRUE(context.parseToken("root"));
+    for (int i = 0; i < depth; ++i) {
+        string_storage.push_back(std::to_string(i));
+        EXPECT_TRUE(context.parseToken(string_storage.back()));
+    }
+
+    EXPECT_FALSE(context.parseToken("notfound"));
+
+    EXPECT_TRUE(context.getRootParseResult().has_value());
+    const ParseResult &root_parse_result = context.getRootParseResult().value();
+    EXPECT_EQ(root_parse_result.m_value, "root");
+    ParseResult const *current_parse_result = &root_parse_result.m_children[0];
+    for (int i = 0; i < depth; ++i) {
+        EXPECT_EQ(current_parse_result->m_value, std::to_string(i));
+        current_parse_result = &current_parse_result->m_children[0];
+    }
+}
+
 TEST(parse, EmptyString) {
     using namespace optionparser_v2;
     auto flag = makeFlag("--help", "-h", "Print help message", {});
