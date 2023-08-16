@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Added `ParseContext` to `optionparser_v2`.
+- Added `ParseContext` to `optionparser_v2`. (https://github.com/sivertac/OptionParser/pull/8)
     - `ParseContext` is used to store the state of the parser, allowing tokens to be fed to the parser one at a time.
 
 ## [v0.2.1]
