@@ -91,6 +91,8 @@ Component::getChildren() const {
     return children;
 }
 
+std::vector<Component> &Component::getChildrenMutable() { return m_children; }
+
 std::vector<std::string>
 Component::getSuggestions(std::string_view input_token) const {
     assert(m_suggestions_func);
@@ -119,6 +121,176 @@ Component makeCommand(std::string name, std::string description,
     return Component(ComponentType::Command, std::move(name), "",
                      std::move(description), std::move(children),
                      suggestions_func);
+}
+
+ParseContext::ParseContext(
+    const std::vector<std::reference_wrapper<const Component>> root_components)
+    : m_root_components(root_components) {}
+
+ParseContext::ParseContext(const std::vector<Component> &root_components) {
+    for (const auto &root_component : root_components) {
+        m_root_components.push_back(std::ref(root_component));
+    }
+}
+
+ParseContext::ParseContext(const Component &root_component) {
+    m_root_components.push_back(std::ref(root_component));
+}
+
+std::optional<ParseResult> parseResultFromToken(const Component &component,
+                                                std::string_view token) {
+    ParseResult parse_result;
+    if (component.isParameter()) {
+        parse_result = ParseResult{token, &component, {}};
+    } else if (component.isFlag()) {
+        // check if token matches flag
+        if (token != component.getName() && token != component.getShortName()) {
+            return std::nullopt;
+        }
+        parse_result = ParseResult{token, &component, {}};
+    } else if (component.isCommand()) {
+        // check if token matches name
+        if (token != component.getName()) {
+            return std::nullopt;
+        }
+        parse_result = ParseResult{token, &component, {}};
+    } else {
+        assert(false);
+    }
+    return parse_result;
+}
+
+size_t countParametersInParseResult(const ParseResult &parse_result) {
+    size_t count = 0;
+    // count number of parameters present in children, non recursive
+    for (const auto &child : parse_result.m_children) {
+        if (child.m_component->isParameter()) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+bool ParseContext::parseToken(std::string_view token) {
+    // if first token
+    if (!m_root_parse_result.has_value()) {
+        // try to find a matching root component
+        for (const auto &component : m_root_components) {
+            auto parse_result = parseResultFromToken(component, token);
+            if (parse_result) {
+                m_root_parse_result = std::move(parse_result);
+                m_parse_result_stack.push(&m_root_parse_result.value());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // if not first token
+
+    // try to find a matching child component
+    // Presidence:
+    // 1. Flags
+    // 2. Commands
+    // 3. Parameters
+    // If we find a token that is not a valid flag, command, or
+    // parameter, then stop parsing children and return what we have so far
+    while (!m_parse_result_stack.empty()) {
+        ParseResult &parse_result = *m_parse_result_stack.top();
+        const Component &component = *parse_result.m_component;
+
+        if (component.getChildren().empty()) {
+            // if component has no children, then there is nothing to parse
+            return false;
+        }
+
+        std::optional<ParseResult> child_parse_result;
+        for (const Component &flag : component.getFlags()) {
+            child_parse_result = parseResultFromToken(flag, token);
+            if (child_parse_result.has_value()) {
+                break;
+            }
+        }
+
+        if (!child_parse_result.has_value()) {
+            for (const Component &command : component.getCommands()) {
+                child_parse_result = parseResultFromToken(command, token);
+                if (child_parse_result.has_value()) {
+                    break;
+                }
+            }
+        }
+
+        if (!child_parse_result.has_value()) {
+            // if we have found all parameters, then we are done
+            size_t parameter_count = countParametersInParseResult(parse_result);
+            if (parameter_count < component.getParameters().size()) {
+                child_parse_result = parseResultFromToken(
+                    component.getParameters()[parameter_count], token);
+            }
+        }
+
+        if (child_parse_result.has_value()) {
+            parse_result.m_children.push_back(
+                std::move(child_parse_result.value()));
+            // if child has children, then push it onto the stack
+            if (!parse_result.m_children.back()
+                     .m_component->getChildren()
+                     .empty()) {
+                m_parse_result_stack.push(&parse_result.m_children.back());
+            }
+            return true;
+        }
+
+        // if we didn't match any child component, and all parameters are
+        // consumed, pop the stack
+        m_parse_result_stack.pop();
+    }
+    return false;
+}
+
+std::vector<std::string>
+nextTokenSuggestionsComponent(const Component &component,
+                              std::string_view token) {
+
+    std::vector<std::string> suggestions;
+
+    for (const auto &child_component_ref : component.getChildren()) {
+        const Component &child_component = child_component_ref.get();
+
+        auto child_suggestions = child_component.getSuggestions(token);
+        suggestions.insert(suggestions.end(), child_suggestions.begin(),
+                           child_suggestions.end());
+    }
+
+    return suggestions;
+}
+
+std::vector<std::string>
+ParseContext::getNextSuggestions(std::string_view token) const {
+    if (m_parse_result_stack.empty()) {
+        if (m_root_parse_result.has_value()) {
+            return {};
+        }
+        // if we have no parse result, then suggest next token based on root
+        // components
+        std::vector<std::string> suggestions;
+        for (const auto &root_component : m_root_components) {
+            auto root_component_suggestions =
+                root_component.get().getSuggestions(token);
+            suggestions.insert(suggestions.end(),
+                               root_component_suggestions.begin(),
+                               root_component_suggestions.end());
+        }
+        return suggestions;
+    }
+    const ParseResult &parse_result = *m_parse_result_stack.top();
+    const Component &component = *parse_result.m_component;
+    return nextTokenSuggestionsComponent(component, token);
+}
+
+const std::optional<ParseResult> &ParseContext::getRootParseResult() const {
+    return m_root_parse_result;
 }
 
 std::vector<std::string_view> tokenize(std::string_view input_string) {
@@ -167,153 +339,35 @@ std::vector<std::string_view> tokenize(std::string_view input_string) {
     return tokens;
 }
 
-std::optional<std::pair<ParseResult, std::vector<std::string_view>::iterator>>
-parseTokens(const Component &component,
-            std::vector<std::string_view>::iterator begin,
-            std::vector<std::string_view>::iterator end);
+std::optional<ParseResult> parseMultiImpl(
+    const std::vector<std::reference_wrapper<const Component>> &root_components,
+    std::string_view input_string) {
 
-std::optional<std::pair<std::vector<ParseResult>,
-                        std::vector<std::string_view>::iterator>>
-parseChildren(const Component &component,
-              std::vector<std::string_view>::iterator begin,
-              std::vector<std::string_view>::iterator end) {
-    std::vector<ParseResult> children;
-
-    // Presidence:
-    // 1. Flags
-    // 2. Commands
-    // 3. Parameters
-
-    // If we find a token that is not a valid flag, command, or
-    // parameter, then stop parsing children and return what we have so far
-
-    // for each token, check if flag or command, if not, then it's
-    // a parameter
-    size_t parameter_count = 0;
-    while (begin != end) {
-        // check if token matches any flag
-        bool flag_found = false;
-
-        for (const auto &flag : component.getFlags()) {
-            auto res = parseTokens(flag, begin, end);
-            if (res.has_value()) {
-                children.push_back(res->first);
-                begin = res->second;
-                flag_found = true;
-                break;
-            }
-        }
-        if (flag_found) {
-            continue;
-        }
-
-        // check if token matches any command
-        bool command_found = false;
-        for (const auto &command : component.getCommands()) {
-            auto res = parseTokens(command, begin, end);
-            if (res.has_value()) {
-                children.push_back(res->first);
-                begin = res->second;
-                command_found = true;
-                break;
-            }
-        }
-        if (command_found) {
-            continue;
-        }
-
-        // if we have found all parameters, then we are done
-        if (parameter_count >= component.getParameters().size()) {
-            break;
-        }
-        auto res =
-            parseTokens(component.getParameters()[parameter_count], begin, end);
-        if (!res.has_value()) {
-            break;
-        }
-        children.push_back(res->first);
-        begin = res->second;
-    }
-
-    return std::make_pair(std::move(children), begin);
-}
-
-/// @brief Parses tokens into a ParseResult
-/// @param component
-/// @param begin
-/// @param end
-/// @return pair of ParseResult and iterator to the next token if successful,
-/// nullopt otherwise
-std::optional<std::pair<ParseResult, std::vector<std::string_view>::iterator>>
-parseTokens(const Component &component,
-            std::vector<std::string_view>::iterator begin,
-            std::vector<std::string_view>::iterator end) {
-    if (begin == end) {
-        return std::nullopt;
-    }
-
-    ParseResult parse_result;
-
-    if (component.isParameter()) {
-        parse_result = ParseResult{*begin, &component, {}};
-        ++begin;
-    } else if (component.isFlag()) {
-        // check if token matches flag
-        if (*begin != component.getName() &&
-            *begin != component.getShortName()) {
-            return std::nullopt;
-        }
-        parse_result = ParseResult{*begin, &component, {}};
-        ++begin;
-    } else if (component.isCommand()) {
-        // check if token matches name
-        if (*begin != component.getName()) {
-            return std::nullopt;
-        }
-        parse_result = ParseResult{*begin, &component, {}};
-        ++begin;
-    }
-
-    // parse children
-    auto res = parseChildren(component, begin, end);
-    if (res.has_value()) {
-        parse_result.m_children = std::move(res->first);
-        begin = res->second;
-    }
-
-    return std::make_pair(parse_result, begin);
-}
-
-std::optional<ParseResult> parse(const Component &root_component,
-                                 std::string_view input_string) {
     // tokenize input_string
     std::vector<std::string_view> tokens = tokenize(input_string);
 
-    // build parse tree
-    auto res = parseTokens(root_component, tokens.begin(), tokens.end());
-    if (!res.has_value()) {
-        return std::nullopt;
+    ParseContext parse_context(root_components);
+    for (const auto &token : tokens) {
+        if (!parse_context.parseToken(token)) {
+            return std::nullopt;
+        }
     }
-    return res->first;
+    return parse_context.getRootParseResult();
 }
 
 std::optional<ParseResult>
 parseMulti(const std::vector<Component> &root_components,
            std::string_view input_string) {
-
-    // tokenize input_string
-    std::vector<std::string_view> tokens = tokenize(input_string);
-
-    // try to parse root_components in order, return the first successful parse
-    ParseResult parse_result;
+    std::vector<std::reference_wrapper<const Component>> root_component_refs;
     for (const auto &root_component : root_components) {
-        auto res = parseTokens(root_component, tokens.begin(), tokens.end());
-        if (res.has_value()) {
-            return res->first;
-        }
+        root_component_refs.push_back(std::ref(root_component));
     }
+    return parseMultiImpl(root_component_refs, input_string);
+}
 
-    return std::nullopt;
+std::optional<ParseResult> parse(const Component &root_component,
+                                 std::string_view input_string) {
+    return parseMultiImpl({std::ref(root_component)}, input_string);
 }
 
 const ParseResult &getLastParseResult(const ParseResult &parse_result) {
@@ -323,83 +377,50 @@ const ParseResult &getLastParseResult(const ParseResult &parse_result) {
     return getLastParseResult(parse_result.m_children.back());
 }
 
-std::vector<std::string>
-nextTokenSuggestionsComponent(const Component &component,
-                              std::string_view token) {
+std::vector<std::string> nextTokenSuggestionsMultiImpl(
+    const std::vector<std::reference_wrapper<const Component>> &root_components,
+    const std::string_view &input_string) {
 
-    std::vector<std::string> suggestions;
-
-    for (const auto &child_component_ref : component.getChildren()) {
-        const Component &child_component = child_component_ref.get();
-
-        auto child_suggestions = child_component.getSuggestions(token);
-        suggestions.insert(suggestions.end(), child_suggestions.begin(),
-                           child_suggestions.end());
-    }
-
-    return suggestions;
-}
-
-std::vector<std::string>
-nextTokenSuggestions(const Component &root_component,
-                     const std::string_view &input_string) {
     // tokenize input_string
     std::vector<std::string_view> tokens = tokenize(input_string);
 
-    // if parse failed, suggest next token based on last token and
-    // root_component
-    std::string_view token = (tokens.empty() ? "" : tokens.back());
+    ParseContext parse_context(root_components);
+    auto it = std::begin(tokens);
+    for (; it != std::end(tokens); ++it) {
+        // if the last token maches the end of the input_string, don't parse it
 
-    // build parse tree
-    std::vector<std::string> suggestions;
-    auto res = parseTokens(root_component, tokens.begin(), tokens.end());
-    if (res.has_value()) {
-        // if parse succeeded, suggest next token based on last token and last
-        // parse result
-        const ParseResult &last_parse_result = getLastParseResult(res->first);
-        const Component &component = *last_parse_result.m_component;
-
-        // get last token
-        if (res->second != tokens.end()) {
-            //  if there are unparsed tokens, suggest next token based on last
-            //  token (uncomplete)
-            token = *res->second;
-            suggestions = nextTokenSuggestionsComponent(component, token);
-        } else {
-            // if there are no unparsed tokens, suggest next token based on
-            // empty string (the last token was complete)
-            token = tokens.back();
-
-            // we only want to suggest the next token if we are sure the current
-            // last token is complete, (i.e if the end of the input string is a
-            // seperator)
-            if (input_string.ends_with(token)) {
-                suggestions = component.getSuggestions(token);
-            } else {
-                suggestions = nextTokenSuggestionsComponent(component, "");
-            }
+        if (it == std::end(tokens) - 1 && input_string.ends_with(*it)) {
+            break;
         }
-    } else {
-        suggestions = root_component.getSuggestions(token);
-    }
 
-    return suggestions;
+        if (!parse_context.parseToken(*it)) {
+            break;
+        }
+    }
+    if (it != std::end(tokens)) {
+        // if parse failed, suggest next token based on last token and
+        // root_component
+        return parse_context.getNextSuggestions(*it);
+    }
+    return parse_context.getNextSuggestions();
 }
 
 std::vector<std::string>
 nextTokenSuggestionsMulti(const std::vector<Component> &root_components,
                           const std::string_view &input_string) {
 
-    std::vector<std::string> suggestions;
+    std::vector<std::reference_wrapper<const Component>> root_component_refs;
     for (const auto &root_component : root_components) {
-        auto root_component_suggestions =
-            nextTokenSuggestions(root_component, input_string);
-        suggestions.insert(suggestions.end(),
-                           root_component_suggestions.begin(),
-                           root_component_suggestions.end());
+        root_component_refs.push_back(std::ref(root_component));
     }
+    return nextTokenSuggestionsMultiImpl(root_component_refs, input_string);
+}
 
-    return suggestions;
+std::vector<std::string>
+nextTokenSuggestions(const Component &root_component,
+                     const std::string_view &input_string) {
+    return nextTokenSuggestionsMultiImpl({std::ref(root_component)},
+                                         input_string);
 }
 
 std::string serializeResult(const ParseResult &result) {
