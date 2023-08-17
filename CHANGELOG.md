@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+- Fixed wrong suggestions when all parameters of a component has been consumed if the parameters has a custom suggestions function, now parameters will only be suggested if there are space for more parameters in the result. ()
 
 ## [v0.3.0] - 2023-8-17
 ### Added

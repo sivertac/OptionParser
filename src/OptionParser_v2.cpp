@@ -250,13 +250,24 @@ bool ParseContext::parseToken(std::string_view token) {
 }
 
 std::vector<std::string>
-nextTokenSuggestionsComponent(const Component &component,
-                              std::string_view token) {
+nextTokenSuggestionsParseResult(const ParseResult &parse_result,
+                                std::string_view token) {
 
     std::vector<std::string> suggestions;
 
-    for (const auto &child_component_ref : component.getChildren()) {
+    size_t result_parameter_count = countParametersInParseResult(parse_result);
+    size_t component_parameter_count =
+        parse_result.m_component->getParameters().size();
+
+    for (const auto &child_component_ref :
+         parse_result.m_component->getChildren()) {
         const Component &child_component = child_component_ref.get();
+
+        // if we have found all parameters, don't suggest any more parameters
+        if (result_parameter_count >= component_parameter_count &&
+            child_component.isParameter()) {
+            continue;
+        }
 
         auto child_suggestions = child_component.getSuggestions(token);
         suggestions.insert(suggestions.end(), child_suggestions.begin(),
@@ -285,8 +296,7 @@ ParseContext::getNextSuggestions(std::string_view token) const {
         return suggestions;
     }
     const ParseResult &parse_result = *m_parse_result_stack.top();
-    const Component &component = *parse_result.m_component;
-    return nextTokenSuggestionsComponent(component, token);
+    return nextTokenSuggestionsParseResult(parse_result, token);
 }
 
 const std::optional<ParseResult> &ParseContext::getRootParseResult() const {

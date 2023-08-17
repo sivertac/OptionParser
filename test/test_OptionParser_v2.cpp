@@ -98,6 +98,24 @@ TEST(ParseContext_parseToken, RecursiveHeterogeneousTree) {
     }
 }
 
+TEST(ParseContext_getNextSuggestions, OnlySuggestNParameters) {
+    using namespace optionparser_v2;
+    auto root_command = makeCommand(
+        "git", "git",
+        {makeParameter(
+            "one", "one", {},
+            [](const Component &component, std::string_view token) {
+                return std::vector<std::string>{"one", "two", "three"};
+            })});
+
+    ParseContext context(root_command);
+    EXPECT_TRUE(context.parseToken("git"));
+    EXPECT_EQ(context.getNextSuggestions().size(), 3);
+    EXPECT_TRUE(context.parseToken("one"));
+    EXPECT_EQ(context.getNextSuggestions().size(), 0);
+    EXPECT_FALSE(context.parseToken("two"));
+}
+
 TEST(parse, EmptyString) {
     using namespace optionparser_v2;
     auto flag = makeFlag("--help", "-h", "Print help message", {});
