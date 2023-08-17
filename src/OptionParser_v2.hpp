@@ -82,7 +82,7 @@ makeCommand(std::string name, std::string description,
             SuggestionsFunc suggestions_func = defaultSuggestionsFunc);
 
 struct ParseResult {
-    std::string_view m_value;
+    std::string m_value;
     const Component *m_component;
     std::vector<ParseResult> m_children;
 };

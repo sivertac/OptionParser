@@ -141,19 +141,19 @@ std::optional<ParseResult> parseResultFromToken(const Component &component,
                                                 std::string_view token) {
     ParseResult parse_result;
     if (component.isParameter()) {
-        parse_result = ParseResult{token, &component, {}};
+        parse_result = ParseResult{std::string(token), &component, {}};
     } else if (component.isFlag()) {
         // check if token matches flag
         if (token != component.getName() && token != component.getShortName()) {
             return std::nullopt;
         }
-        parse_result = ParseResult{token, &component, {}};
+        parse_result = ParseResult{std::string(token), &component, {}};
     } else if (component.isCommand()) {
         // check if token matches name
         if (token != component.getName()) {
             return std::nullopt;
         }
-        parse_result = ParseResult{token, &component, {}};
+        parse_result = ParseResult{std::string(token), &component, {}};
     } else {
         assert(false);
     }
