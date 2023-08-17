@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `ParseContext` to `optionparser_v2`. (https://github.com/sivertac/OptionParser/pull/8)
     - `ParseContext` is used to store the state of the parser, allowing tokens to be fed to the parser one at a time.
 
+### Changed
+- Changed stored value type in `ParseResult` from `std::string_view` to `std::string` in `optionparser_v2`. ()
+    - This is to avoid dangling references to the original input string.
+
 ## [v0.2.1]
 ### Fixed
 - Set correct project version in `CMakeLists.txt`.

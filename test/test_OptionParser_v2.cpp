@@ -72,12 +72,9 @@ TEST(ParseContext_parseToken, RecursiveHeterogeneousTree) {
     using namespace optionparser_v2;
     int depth = 100;
     Component root_component = makeCommand("root", "root");
-    std::vector<std::string> string_storage;
-    string_storage.reserve(depth * 2);
     Component *current_component = &root_component;
     for (int i = 0; i < depth; ++i) {
-        string_storage.push_back(std::to_string(i));
-        Component child_component = makeCommand(string_storage.back(), "child");
+        Component child_component = makeCommand(std::to_string(i), "child");
         current_component->getChildrenMutable().push_back(
             std::move(child_component));
         current_component = &current_component->getChildrenMutable().back();
@@ -86,8 +83,7 @@ TEST(ParseContext_parseToken, RecursiveHeterogeneousTree) {
     ParseContext context(root_component);
     EXPECT_TRUE(context.parseToken("root"));
     for (int i = 0; i < depth; ++i) {
-        string_storage.push_back(std::to_string(i));
-        EXPECT_TRUE(context.parseToken(string_storage.back()));
+        EXPECT_TRUE(context.parseToken(std::to_string(i)));
     }
 
     EXPECT_FALSE(context.parseToken("notfound"));
