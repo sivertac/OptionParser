@@ -6,8 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.3.1] - 2023-8-17
 ### Fixed
-- Fixed wrong suggestions when all parameters of a component has been consumed if the parameters has a custom suggestions function, now parameters will only be suggested if there are space for more parameters in the result. ()
+- Fixed wrong suggestions when all parameters of a component has been consumed if the parameters has a custom suggestions function, now parameters will only be suggested if there are space for more parameters in the result. (https://github.com/sivertac/OptionParser/pull/11)
 
 ## [v0.3.0] - 2023-8-17
 ### Added
