@@ -98,6 +98,82 @@ TEST(ParseContext_parseToken, RecursiveHeterogeneousTree) {
     }
 }
 
+TEST(ParseContext_parseToken, RequiredFlagComplete) {
+    using namespace optionparser_v2;
+    auto root_command = makeCommand(
+        "git", "git",
+        {makeRequiredFlag("--help", "-h", "Print help message", {})});
+
+    ParseContext context(root_command);
+    EXPECT_TRUE(context.parseToken("git"));
+    EXPECT_TRUE(context.parseToken("--help"));
+    EXPECT_TRUE(context.getRootParseResult().has_value());
+    EXPECT_EQ(context.getRootParseResult().value().m_value, "git");
+    EXPECT_EQ(context.getRootParseResult().value().m_children.size(), 1);
+    EXPECT_EQ(context.getRootParseResult().value().m_children[0].m_value,
+              "--help");
+    EXPECT_TRUE(context.isComplete());
+}
+
+TEST(ParseContext_parseToken, RequiredFlagIncomplete) {
+    using namespace optionparser_v2;
+    auto root_command = makeCommand(
+        "git", "git",
+        {makeRequiredFlag("--help", "-h", "Print help message", {})});
+
+    ParseContext context(root_command);
+    EXPECT_TRUE(context.parseToken("git"));
+    EXPECT_FALSE(context.isComplete());
+    EXPECT_FALSE(context.parseToken("--wrong"));
+    EXPECT_FALSE(context.isComplete());
+}
+
+TEST(ParseContext_parseToken, RequiredParameterComplete) {
+    using namespace optionparser_v2;
+    auto root_command =
+        makeCommand("git", "git",
+                    {makeRequiredParameter("param1", "param 1", {}),
+                     makeParameter("param2", "param 2", {})});
+
+    ParseContext context(root_command);
+    EXPECT_TRUE(context.parseToken("git"));
+    EXPECT_TRUE(context.parseToken("param1"));
+    EXPECT_TRUE(context.getRootParseResult().has_value());
+    EXPECT_EQ(context.getRootParseResult().value().m_value, "git");
+    EXPECT_EQ(context.getRootParseResult().value().m_children.size(), 1);
+    EXPECT_EQ(context.getRootParseResult().value().m_children[0].m_value,
+              "param1");
+    EXPECT_TRUE(context.isComplete());
+}
+
+TEST(ParseContext_parseToken, RequiredParameterIncomplete) {
+    using namespace optionparser_v2;
+    auto root_command =
+        makeCommand("git", "git",
+                    {makeRequiredParameter("param1", "param 1", {}),
+                     makeParameter("param2", "param 2", {})});
+
+    ParseContext context(root_command);
+    EXPECT_TRUE(context.parseToken("git"));
+    EXPECT_FALSE(context.isComplete());
+    EXPECT_TRUE(context.parseToken("param3"));
+    EXPECT_TRUE(context.isComplete());
+    EXPECT_TRUE(context.parseToken("param2"));
+    EXPECT_TRUE(context.isComplete());
+}
+
+TEST(ParseContext_parseToken, NotrequiredCommandComplete) {
+    using namespace optionparser_v2;
+    auto root_command = makeCommand("git", "git",
+                                    {makeCommand("command1", "command 1", {}),
+                                     makeCommand("command2", "command 2", {})});
+
+    ParseContext context(root_command);
+    EXPECT_FALSE(context.isComplete());
+    EXPECT_TRUE(context.parseToken("git"));
+    EXPECT_TRUE(context.isComplete());
+}
+
 TEST(ParseContext_getNextSuggestions, OnlySuggestNParameters) {
     using namespace optionparser_v2;
     auto root_command = makeCommand(

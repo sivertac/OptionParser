@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Optional Required Components, parser will validate if required components are present. ()
+    - `isComplete()` member function in `ParseContext` will return `false` if required components are missing for the current `ParseResult`.
 
 ## [v0.3.1] - 2023-8-17
 ### Fixed

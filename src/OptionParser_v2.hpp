@@ -37,12 +37,15 @@ class Component {
 public:
     Component(ComponentType type, std::string name, std::string short_name,
               std::string description, std::vector<Component> &&children = {},
-              SuggestionsFunc suggestions_func = defaultSuggestionsFunc);
+              SuggestionsFunc suggestions_func = defaultSuggestionsFunc,
+              bool required = false);
 
     ComponentType getType() const;
     bool isParameter() const;
     bool isFlag() const;
     bool isCommand() const;
+
+    bool isRequired() const;
 
     const std::string &getName() const;
     const std::string &getShortName() const;
@@ -64,22 +67,41 @@ private:
     std::string m_description;
     std::vector<Component> m_children;
     SuggestionsFunc m_suggestions_func;
+    bool m_required;
 };
 
 Component
 makeParameter(std::string display_name, std::string description,
               std::vector<Component> &&children = {},
-              SuggestionsFunc suggestions_func = defaultSuggestionsFunc);
+              SuggestionsFunc suggestions_func = defaultSuggestionsFunc,
+              bool required = false);
+
+Component makeRequiredParameter(
+    std::string display_name, std::string description,
+    std::vector<Component> &&children = {},
+    SuggestionsFunc suggestions_func = defaultSuggestionsFunc);
 
 Component makeFlag(std::string name, std::string short_name,
                    std::string description,
                    std::vector<Component> &&children = {},
-                   SuggestionsFunc suggestions_func = defaultSuggestionsFunc);
+                   SuggestionsFunc suggestions_func = defaultSuggestionsFunc,
+                   bool required = false);
 
 Component
-makeCommand(std::string name, std::string description,
-            std::vector<Component> &&children = {},
-            SuggestionsFunc suggestions_func = defaultSuggestionsFunc);
+makeRequiredFlag(std::string name, std::string short_name,
+                 std::string description,
+                 std::vector<Component> &&children = {},
+                 SuggestionsFunc suggestions_func = defaultSuggestionsFunc);
+
+Component makeCommand(std::string name, std::string description,
+                      std::vector<Component> &&children = {},
+                      SuggestionsFunc suggestions_func = defaultSuggestionsFunc,
+                      bool required = false);
+
+Component
+makeRequiredCommand(std::string name, std::string description,
+                    std::vector<Component> &&children = {},
+                    SuggestionsFunc suggestions_func = defaultSuggestionsFunc);
 
 struct ParseResult {
     std::string m_value;
@@ -108,6 +130,12 @@ public:
     /// @brief Get the root parse result.
     /// @return
     const std::optional<ParseResult> &getRootParseResult() const;
+
+    /// @brief Check if the parse is complete.
+    /// A parse is complete if all ParseResults does not have any pending
+    /// required children.
+    /// @return
+    bool isComplete() const;
 
 private:
     std::vector<std::reference_wrapper<const Component>> m_root_components;
@@ -153,6 +181,16 @@ nextTokenSuggestionsMulti(const std::vector<Component> &root_components,
                           const std::string_view &input_string);
 
 std::string serializeResult(const ParseResult &result);
+
+/// @brief Generate a usage string for the given component.
+/// @param root_component
+/// @return
+std::string generateUsageString(const Component &root_component);
+
+/// @brief Generate a help string for the given component.
+/// @param root_component
+/// @return
+std::string generateHelpString(const Component &root_component);
 
 } // namespace optionparser_v2
 
