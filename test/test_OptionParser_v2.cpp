@@ -192,8 +192,7 @@ TEST(ParseContext_getNextSuggestions, OnlySuggestNParameters) {
     auto root_command = makeCommand(
         "git", "git",
         {makeParameter(
-            "one", "one", {},
-            [](const Component &, std::string_view) {
+            "one", "one", {}, [](const Component &, std::string_view) {
                 return std::vector<std::string>{"one", "two", "three"};
             })});
 
