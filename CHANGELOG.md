@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.0] - 2023-8-19
+### Added
+- Added optional Required Components, parser will validate if required components are present. (https://github.com/sivertac/OptionParser/pull/12)
+    - `isComplete()` member function in `ParseContext` will return `false` if required components are missing for the current `ParseResult`.
+    - `makeRequiredParameter(...)`, `makeRequiredFlag(...)`, `makeRequiredCommand(...)` functions to make required components.
+- Added automatic help text generators for `optionparser_v2` Components. (https://github.com/sivertac/OptionParser/pull/12)
+    - `generateUsageString` will generate a usage string for the parser.
+    - `generateHelpString` will generate a help string for the parser.
+
 ## [v0.3.1] - 2023-8-17
 ### Fixed
 - Fixed wrong suggestions when all parameters of a component has been consumed if the parameters has a custom suggestions function, now parameters will only be suggested if there are space for more parameters in the result. (https://github.com/sivertac/OptionParser/pull/11)

@@ -36,10 +36,10 @@ std::vector<std::string> defaultSuggestionsFunc(const Component &component,
 Component::Component(ComponentType type, std::string name,
                      std::string short_name, std::string description,
                      std::vector<Component> &&children,
-                     SuggestionsFunc suggestions_func)
+                     SuggestionsFunc suggestions_func, bool required)
     : m_type(type), m_name(name), m_short_name(short_name),
       m_description(description), m_children(children),
-      m_suggestions_func(suggestions_func) {}
+      m_suggestions_func(suggestions_func), m_required(required) {}
 
 ComponentType Component::getType() const { return m_type; }
 bool Component::isParameter() const {
@@ -47,6 +47,7 @@ bool Component::isParameter() const {
 }
 bool Component::isFlag() const { return m_type == ComponentType::Flag; }
 bool Component::isCommand() const { return m_type == ComponentType::Command; }
+bool Component::isRequired() const { return m_required; };
 const std::string &Component::getName() const { return m_name; }
 const std::string &Component::getShortName() const { return m_short_name; }
 const std::string &Component::getDescription() const { return m_description; }
@@ -101,26 +102,52 @@ Component::getSuggestions(std::string_view input_token) const {
 
 Component makeParameter(std::string display_name, std::string description,
                         std::vector<Component> &&children,
-                        SuggestionsFunc suggestions_func) {
+                        SuggestionsFunc suggestions_func, bool required) {
     return Component(ComponentType::Parameter, std::move(display_name), "",
                      std::move(description), std::move(children),
-                     suggestions_func);
+                     suggestions_func, required);
+}
+
+Component makeRequiredParameter(std::string display_name,
+                                std::string description,
+                                std::vector<Component> &&children,
+                                SuggestionsFunc suggestions_func) {
+    return Component(ComponentType::Parameter, std::move(display_name), "",
+                     std::move(description), std::move(children),
+                     suggestions_func, true);
 }
 
 Component makeFlag(std::string name, std::string short_name,
                    std::string description, std::vector<Component> &&parameters,
-                   SuggestionsFunc suggestions_func) {
+                   SuggestionsFunc suggestions_func, bool required) {
     return Component(ComponentType::Flag, std::move(name),
                      std::move(short_name), std::move(description),
-                     std::move(parameters), suggestions_func);
+                     std::move(parameters), suggestions_func, required);
+}
+
+Component makeRequiredFlag(std::string name, std::string short_name,
+                           std::string description,
+                           std::vector<Component> &&children,
+                           SuggestionsFunc suggestions_func) {
+    return Component(ComponentType::Flag, std::move(name),
+                     std::move(short_name), std::move(description),
+                     std::move(children), suggestions_func, true);
 }
 
 Component makeCommand(std::string name, std::string description,
                       std::vector<Component> &&children,
-                      SuggestionsFunc suggestions_func) {
+                      SuggestionsFunc suggestions_func, bool required) {
     return Component(ComponentType::Command, std::move(name), "",
                      std::move(description), std::move(children),
-                     suggestions_func);
+                     suggestions_func, required);
+}
+
+Component makeRequiredCommand(std::string name, std::string description,
+                              std::vector<Component> &&children,
+                              SuggestionsFunc suggestions_func) {
+    return Component(ComponentType::Command, std::move(name), "",
+                     std::move(description), std::move(children),
+                     suggestions_func, true);
 }
 
 ParseContext::ParseContext(
@@ -169,6 +196,28 @@ size_t countParametersInParseResult(const ParseResult &parse_result) {
         }
     }
     return count;
+}
+
+bool parseResultIsComplete(const ParseResult &parse_result) {
+    // check if the component of the ParseResult have any required child
+    // components that have not been parsed in the result
+    for (const auto &child_component_ref :
+         parse_result.m_component->getChildren()) {
+        const Component &child_component = child_component_ref.get();
+        if (child_component.isRequired()) {
+            bool found = false;
+            for (const auto &child_result : parse_result.m_children) {
+                if (child_result.m_component == &child_component) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 bool ParseContext::parseToken(std::string_view token) {
@@ -242,8 +291,15 @@ bool ParseContext::parseToken(std::string_view token) {
             return true;
         }
 
-        // if we didn't match any child component, and all parameters are
-        // consumed, pop the stack
+        if (!parseResultIsComplete(parse_result)) {
+            // if we have not found all required child components, then we
+            // cannot pop as the current parse result is not complete
+            return false;
+        }
+
+        // if we didn't match any child component, all parameters are
+        // consumed and there are no outstanding required components, pop the
+        // stack
         m_parse_result_stack.pop();
     }
     return false;
@@ -301,6 +357,16 @@ ParseContext::getNextSuggestions(std::string_view token) const {
 
 const std::optional<ParseResult> &ParseContext::getRootParseResult() const {
     return m_root_parse_result;
+}
+
+bool ParseContext::isComplete() const {
+    if (!m_root_parse_result.has_value()) {
+        return false;
+    }
+    if (m_parse_result_stack.empty()) {
+        return true;
+    }
+    return parseResultIsComplete(*m_parse_result_stack.top());
 }
 
 std::vector<std::string_view> tokenize(std::string_view input_string) {
@@ -444,6 +510,110 @@ std::string serializeResult(const ParseResult &result) {
     }
 
     return output_string;
+}
+
+void generateUsageStringImpl(std::stringstream &ss, const Component &component,
+                             bool skip_square_brackets = false) {
+    if (!component.isRequired() && !skip_square_brackets) {
+        ss << "[";
+    }
+
+    if (component.isParameter()) {
+        ss << "<" << component.getName() << ">";
+    } else if (component.isFlag()) {
+        ss << component.getName();
+    } else if (component.isCommand()) {
+        ss << component.getName();
+    } else {
+        assert(false);
+    }
+
+    const auto children = component.getChildren();
+    int n_child = children.size();
+    if (!children.empty()) {
+        ss << " ";
+    }
+
+    // flags
+    for (const auto &flag : component.getFlags()) {
+        generateUsageStringImpl(ss, flag.get());
+        if (--n_child > 0) {
+            ss << " ";
+        }
+    }
+
+    // commands
+    if (!component.getCommands().empty()) {
+        ss << "<command>";
+        if (--n_child > 0) {
+            ss << " ";
+        }
+    }
+
+    // parameters
+    for (const auto &parameter : component.getParameters()) {
+        generateUsageStringImpl(ss, parameter.get());
+        if (--n_child > 0) {
+            ss << " ";
+        }
+    }
+
+    if (!component.isRequired() && !skip_square_brackets) {
+        ss << "]";
+    }
+}
+
+std::string generateUsageString(const Component &root_component) {
+    std::stringstream ss;
+
+    ss << "Usage: ";
+
+    generateUsageStringImpl(ss, root_component, true);
+
+    return ss.str();
+}
+
+void generateHelpStringImpl(std::stringstream &ss, const Component &component,
+                            int indent = 0, int margin = 40) {
+    // write root component and description
+    ss << std::string(indent, ' ') << component.getName();
+
+    // write parameters
+    int parameter_text_size = 0;
+    for (const auto &parameter : component.getParameters()) {
+        ss << " <" << parameter.get().getName() << ">";
+        parameter_text_size += parameter.get().getName().size() + 3;
+    }
+
+    // calculate the remaining space for description alignment
+    int remainingSpace = margin - (indent + component.getName().size() + 1 +
+                                   parameter_text_size);
+
+    if (remainingSpace > 0) {
+        ss << std::string(remainingSpace, ' ') << " ";
+    } else {
+        ss << std::endl << std::string(margin, ' ');
+    }
+
+    ss << component.getDescription() << std::endl;
+
+    // write flags
+    for (const auto &flag : component.getFlags()) {
+        generateHelpStringImpl(ss, flag.get(), indent + 4, margin);
+    }
+
+    // write commands
+    for (const auto &command : component.getCommands()) {
+        generateHelpStringImpl(ss, command.get(), indent + 4, margin);
+    }
+}
+
+std::string generateHelpString(const Component &root_component, int margin) {
+    std::stringstream ss;
+
+    generateHelpStringImpl(ss, root_component, 0, margin);
+
+    return ss.str();
 }
 
 } // namespace optionparser_v2

@@ -98,13 +98,102 @@ TEST(ParseContext_parseToken, RecursiveHeterogeneousTree) {
     }
 }
 
+TEST(ParseContext_parseToken, RequiredFlagComplete) {
+    using namespace optionparser_v2;
+    auto root_command = makeCommand(
+        "git", "git",
+        {makeRequiredFlag("--help", "-h", "Print help message", {})});
+
+    ParseContext context(root_command);
+    EXPECT_TRUE(context.parseToken("git"));
+    EXPECT_TRUE(context.parseToken("--help"));
+    EXPECT_TRUE(context.getRootParseResult().has_value());
+    EXPECT_EQ(context.getRootParseResult().value().m_value, "git");
+    EXPECT_EQ(context.getRootParseResult().value().m_children.size(), 1);
+    EXPECT_EQ(context.getRootParseResult().value().m_children[0].m_value,
+              "--help");
+    EXPECT_TRUE(context.isComplete());
+}
+
+TEST(ParseContext_parseToken, RequiredFlagIncomplete) {
+    using namespace optionparser_v2;
+    auto root_command = makeCommand(
+        "git", "git",
+        {makeRequiredFlag("--help", "-h", "Print help message", {})});
+
+    ParseContext context(root_command);
+    EXPECT_TRUE(context.parseToken("git"));
+    EXPECT_FALSE(context.isComplete());
+    EXPECT_FALSE(context.parseToken("--wrong"));
+    EXPECT_FALSE(context.isComplete());
+}
+
+TEST(ParseContext_parseToken, RequiredParameterComplete) {
+    using namespace optionparser_v2;
+    auto root_command =
+        makeCommand("git", "git",
+                    {makeRequiredParameter("param1", "param 1", {}),
+                     makeParameter("param2", "param 2", {})});
+
+    ParseContext context(root_command);
+    EXPECT_TRUE(context.parseToken("git"));
+    EXPECT_TRUE(context.parseToken("param1"));
+    EXPECT_TRUE(context.getRootParseResult().has_value());
+    EXPECT_EQ(context.getRootParseResult().value().m_value, "git");
+    EXPECT_EQ(context.getRootParseResult().value().m_children.size(), 1);
+    EXPECT_EQ(context.getRootParseResult().value().m_children[0].m_value,
+              "param1");
+    EXPECT_TRUE(context.isComplete());
+}
+
+TEST(ParseContext_parseToken, RequiredParameterIncomplete) {
+    using namespace optionparser_v2;
+    auto root_command =
+        makeCommand("git", "git",
+                    {makeRequiredParameter("param1", "param 1", {}),
+                     makeParameter("param2", "param 2", {})});
+
+    ParseContext context(root_command);
+    EXPECT_TRUE(context.parseToken("git"));
+    EXPECT_FALSE(context.isComplete());
+    EXPECT_TRUE(context.parseToken("param3"));
+    EXPECT_TRUE(context.isComplete());
+    EXPECT_TRUE(context.parseToken("param2"));
+    EXPECT_TRUE(context.isComplete());
+}
+
+TEST(ParseContext_parseToken, NotrequiredCommandComplete) {
+    using namespace optionparser_v2;
+    auto root_command = makeCommand("git", "git",
+                                    {makeCommand("command1", "command 1", {}),
+                                     makeCommand("command2", "command 2", {})});
+
+    ParseContext context(root_command);
+    EXPECT_FALSE(context.isComplete());
+    EXPECT_TRUE(context.parseToken("git"));
+    EXPECT_TRUE(context.isComplete());
+}
+
+TEST(ParseContext_parseToken, MultipleRequiredCommandRootLevel) {
+    using namespace optionparser_v2;
+    std::vector<Component> root_commands = {
+        makeRequiredCommand("one", "one", {}),
+        makeRequiredCommand("two", "two", {}),
+    };
+
+    ParseContext context(root_commands);
+    EXPECT_FALSE(context.isComplete());
+    EXPECT_TRUE(context.parseToken("one"));
+    EXPECT_TRUE(context.isComplete());
+}
+
 TEST(ParseContext_getNextSuggestions, OnlySuggestNParameters) {
     using namespace optionparser_v2;
     auto root_command = makeCommand(
         "git", "git",
         {makeParameter(
             "one", "one", {},
-            [](const Component &component, std::string_view token) {
+            [](const Component &, std::string_view) {
                 return std::vector<std::string>{"one", "two", "three"};
             })});
 
@@ -460,4 +549,26 @@ TEST(nextTokenSuggestionsMulti, MultipleCommandRoots) {
 
     EXPECT_EQ(suggestions.size(), 1);
     EXPECT_THAT(suggestions, ::testing::Contains("two"));
+}
+
+TEST(generateUsageString, CommandWithFlagAndParameter) {
+    using namespace optionparser_v2;
+    auto parameter = makeParameter("one", "one");
+    auto flag = makeFlag("--help", "-h", "Print help message");
+    auto command =
+        makeCommand("clone", "Clone a repository", {flag, parameter});
+
+    std::string usage_string = optionparser_v2::generateUsageString(command);
+    EXPECT_FALSE(usage_string.empty());
+}
+
+TEST(generateHelpString, CommandWithFlagAndParameter) {
+    using namespace optionparser_v2;
+    auto parameter = makeParameter("one", "one");
+    auto flag = makeFlag("--help", "-h", "Print help message");
+    auto command =
+        makeCommand("clone", "Clone a repository", {flag, parameter});
+
+    std::string help_string = optionparser_v2::generateHelpString(command);
+    EXPECT_FALSE(help_string.empty());
 }
