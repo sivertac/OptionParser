@@ -431,6 +431,12 @@ std::optional<ParseResult> parseMultiImpl(
     return parse_context.getRootParseResult();
 }
 
+std::optional<ParseResult> parseMultiRef(
+    const std::vector<std::reference_wrapper<const Component>> &root_components,
+    std::string_view input_string) {
+    return parseMultiImpl(root_components, input_string);
+}
+
 std::optional<ParseResult>
 parseMulti(const std::vector<Component> &root_components,
            std::string_view input_string) {
@@ -438,7 +444,7 @@ parseMulti(const std::vector<Component> &root_components,
     for (const auto &root_component : root_components) {
         root_component_refs.push_back(std::ref(root_component));
     }
-    return parseMultiImpl(root_component_refs, input_string);
+    return parseMultiRef(root_component_refs, input_string);
 }
 
 std::optional<ParseResult> parse(const Component &root_component,
@@ -481,6 +487,12 @@ std::vector<std::string> nextTokenSuggestionsMultiImpl(
     return parse_context.getNextSuggestions();
 }
 
+std::vector<std::string> nextTokenSuggestionsMultiRef(
+    const std::vector<std::reference_wrapper<const Component>> &root_components,
+    const std::string_view &input_string) {
+    return nextTokenSuggestionsMultiImpl(root_components, input_string);
+}
+
 std::vector<std::string>
 nextTokenSuggestionsMulti(const std::vector<Component> &root_components,
                           const std::string_view &input_string) {
@@ -489,7 +501,7 @@ nextTokenSuggestionsMulti(const std::vector<Component> &root_components,
     for (const auto &root_component : root_components) {
         root_component_refs.push_back(std::ref(root_component));
     }
-    return nextTokenSuggestionsMultiImpl(root_component_refs, input_string);
+    return nextTokenSuggestionsMultiRef(root_component_refs, input_string);
 }
 
 std::vector<std::string>

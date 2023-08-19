@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.5.0] - 2023-8-19
+### Added
+- Added reference version of multi functions in `optionparser_v2`.
+
 ## [v0.4.0] - 2023-8-19
 ### Added
 - Added optional Required Components, parser will validate if required components are present. (https://github.com/sivertac/OptionParser/pull/12)

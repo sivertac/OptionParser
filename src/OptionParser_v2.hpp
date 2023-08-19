@@ -160,6 +160,9 @@ std::optional<ParseResult> parse(const Component &root_component,
 std::optional<ParseResult>
 parseMulti(const std::vector<Component> &root_components,
            std::string_view input_string);
+std::optional<ParseResult> parseMultiRef(
+    const std::vector<std::reference_wrapper<const Component>> &root_components,
+    std::string_view input_string);
 
 /// @brief Get the last parse result from the parse result.
 /// @param parse_result
@@ -179,6 +182,9 @@ nextTokenSuggestions(const Component &root_component,
 std::vector<std::string>
 nextTokenSuggestionsMulti(const std::vector<Component> &root_components,
                           const std::string_view &input_string);
+std::vector<std::string> nextTokenSuggestionsMultiRef(
+    const std::vector<std::reference_wrapper<const Component>> &root_components,
+    const std::string_view &input_string);
 
 std::string serializeResult(const ParseResult &result);
 
