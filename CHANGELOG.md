@@ -6,9 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [v0.4.0] - 2023-8-19
 ### Added
-- Optional Required Components, parser will validate if required components are present. ()
+- Added optional Required Components, parser will validate if required components are present. ()
     - `isComplete()` member function in `ParseContext` will return `false` if required components are missing for the current `ParseResult`.
+    - `makeRequiredParameter(...)`, `makeRequiredFlag(...)`, `makeRequiredCommand(...)` functions to make required components.
+- Added automatic help text generators for `optionparser_v2` Components. ()
+    - `generateUsageString` will generate a usage string for the parser.
+    - `generateHelpString` will generate a help string for the parser.
 
 ## [v0.3.1] - 2023-8-17
 ### Fixed

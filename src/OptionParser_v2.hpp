@@ -190,7 +190,8 @@ std::string generateUsageString(const Component &root_component);
 /// @brief Generate a help string for the given component.
 /// @param root_component
 /// @return
-std::string generateHelpString(const Component &root_component);
+std::string generateHelpString(const Component &root_component,
+                               int margin = 40);
 
 } // namespace optionparser_v2
 

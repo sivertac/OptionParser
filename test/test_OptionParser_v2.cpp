@@ -174,13 +174,26 @@ TEST(ParseContext_parseToken, NotrequiredCommandComplete) {
     EXPECT_TRUE(context.isComplete());
 }
 
+TEST(ParseContext_parseToken, MultipleRequiredCommandRootLevel) {
+    using namespace optionparser_v2;
+    std::vector<Component> root_commands = {
+        makeRequiredCommand("one", "one", {}),
+        makeRequiredCommand("two", "two", {}),
+    };
+
+    ParseContext context(root_commands);
+    EXPECT_FALSE(context.isComplete());
+    EXPECT_TRUE(context.parseToken("one"));
+    EXPECT_TRUE(context.isComplete());
+}
+
 TEST(ParseContext_getNextSuggestions, OnlySuggestNParameters) {
     using namespace optionparser_v2;
     auto root_command = makeCommand(
         "git", "git",
         {makeParameter(
             "one", "one", {},
-            [](const Component &component, std::string_view token) {
+            [](const Component &, std::string_view) {
                 return std::vector<std::string>{"one", "two", "three"};
             })});
 
@@ -536,4 +549,26 @@ TEST(nextTokenSuggestionsMulti, MultipleCommandRoots) {
 
     EXPECT_EQ(suggestions.size(), 1);
     EXPECT_THAT(suggestions, ::testing::Contains("two"));
+}
+
+TEST(generateUsageString, CommandWithFlagAndParameter) {
+    using namespace optionparser_v2;
+    auto parameter = makeParameter("one", "one");
+    auto flag = makeFlag("--help", "-h", "Print help message");
+    auto command =
+        makeCommand("clone", "Clone a repository", {flag, parameter});
+
+    std::string usage_string = optionparser_v2::generateUsageString(command);
+    EXPECT_FALSE(usage_string.empty());
+}
+
+TEST(generateHelpString, CommandWithFlagAndParameter) {
+    using namespace optionparser_v2;
+    auto parameter = makeParameter("one", "one");
+    auto flag = makeFlag("--help", "-h", "Print help message");
+    auto command =
+        makeCommand("clone", "Clone a repository", {flag, parameter});
+
+    std::string help_string = optionparser_v2::generateHelpString(command);
+    EXPECT_FALSE(help_string.empty());
 }
